@@ -1,0 +1,113 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bananalecture_backend"
+dynamic = ["version"]
+description = "Banana Lecture Backend API"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+dependencies = [
+    # Core Framework & Web
+    "fastapi",
+    "uvicorn[standard]",
+    # Data Validation & Models
+    "pydantic",
+    "pydantic-settings",
+    "sqlalchemy>=2.0.48",
+    "aiosqlite>=0.22.1",
+    "httpx>=0.28.1",
+    "pillow>=12.1.1",
+    "pyyaml>=6.0.3",
+    "pydantic-ai-slim[openai]>=1.71.0",
+    "ffmpeg-python>=0.2.0",
+]
+
+[project.scripts]
+bananalecture_backend = "bananalecture_backend.main:main"
+
+[dependency-groups]
+dev = [
+    # Testing
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-archon",
+    "httpx",
+    # Linting & Formatting
+    "ruff",
+    "bandit",
+    "gitlint",
+    # Type Checking
+    "mypy",
+    "types-pyyaml",
+    # Workflow
+    "pre-commit",
+]
+
+[tool.hatch.version]
+path = "src/bananalecture_backend/__init__.py"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "ALL",    # Enable all rules
+    "FAST",   # FastAPI rules
+]
+ignore = [
+    "D100",   # Missing docstring in public module
+    "D104",   # Missing docstring in public package
+    "D203",   # 1 blank line required before class docstring
+    "D212",   # Multi-line docstring summary should start at the first line
+    "D213",   # Multi-line docstring summary should start at the second line
+    "D400",   # First line should end with a period
+    "D415",   # First line should end with a period, question mark, or exclamation point
+    "COM812", # Trailing comma missing
+    "ISC001", # Implicit string concatenation
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["ALL"]
+"scripts/**/*.py" = ["ALL"]
+"src/**/main.py" = [
+    "T201", # Allow print in main entry point
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+show_error_codes = true
+warn_unused_ignores = true
+exclude = ["tests", "scripts"]
+plugins = [
+    "pydantic.mypy",
+]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra -q --basetemp=/tmp/bananalecture-backend-pytest"
+markers = [
+    "e2e: End-to-end tests",
+    "unit: Unit tests",
+]

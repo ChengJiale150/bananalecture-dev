@@ -1,0 +1,85 @@
+set shell := ["bash", "-c"]
+
+# List all available recipes
+help:
+    @just --list
+
+# Install dependencies and setup environment
+install:
+    @echo "Checking for uv..."
+    @if ! command -v uv > /dev/null; then \
+        echo "uv not found. Installing uv..."; \
+        curl -LsSf https://astral.sh/uv/install.sh | sh; \
+    else \
+        echo "uv is already installed."; \
+    fi
+
+    @echo "Checking for ffmpeg..."
+    @if command -v ffmpeg > /dev/null; then \
+        echo "ffmpeg is already installed."; \
+    elif command -v apt-get > /dev/null; then \
+        echo "Installing ffmpeg with apt-get..."; \
+        sudo apt-get update && sudo apt-get install -y ffmpeg; \
+    elif command -v brew > /dev/null; then \
+        echo "Installing ffmpeg with Homebrew..."; \
+        brew install ffmpeg; \
+    else \
+        echo "ffmpeg is not installed. Please install it manually for audio/video generation."; \
+    fi
+
+    uv sync
+    uv run pre-commit install
+    uv run pre-commit install --hook-type commit-msg
+
+# Sync environment
+sync:
+    uv sync
+
+# Run the FastAPI development server
+run port="8000":
+    uv run uvicorn bananalecture_backend.main:app --host 0.0.0.0 --port {{port}}
+
+# Format code using ruff
+format:
+    uv run ruff format .
+
+# Lint code using ruff
+lint:
+    uv run ruff check . --fix
+
+# Type check code using mypy
+type-check:
+    uv run mypy src
+
+# Run tests using pytest
+test args='':
+    uv run pytest {{ args }}
+
+# Run tests with coverage using pytest-cov
+cov-test args='':
+    uv run pytest --cov=src/bananalecture_backend --cov-report=term-missing {{ args }}
+
+# Run security checks using bandit
+security-check:
+    uv run bandit -r src/
+
+# Run all checks (format, lint, type-check, test)
+check: format lint type-check test
+
+# Run pre-commit on all files
+pre-commit:
+    uv run pre-commit run --all-files
+
+# Build the package
+build:
+    uv build
+
+# Remove temporary files and caches
+clean:
+    rm -rf .venv
+    rm -rf .ruff_cache
+    rm -rf .mypy_cache
+    rm -rf .pytest_cache .coverage
+    rm -rf dist
+    find . -type d -name "__pycache__" -exec rm -rf {} +
+    find . -type f -name "*.pyc" -delete
