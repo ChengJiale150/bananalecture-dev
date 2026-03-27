@@ -63,3 +63,6 @@
 
 - 不要把后端返回 DTO 直接散播到 UI；先在 `features/projects` 做映射。
 - 不要在组件中硬编码后端基础 URL、任务轮询协议或资源路径。
+
+### Commit
+Before committing your changes, please ensure that your code passes all quality checks and adheres to the commit message format. For detailed instructions, please refer to [commit.md](docs/commit.md).
