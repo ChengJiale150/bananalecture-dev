@@ -18,9 +18,7 @@ test('extractLatestPptPlanState keeps the latest draft and completed tool result
           state: 'output-available',
           toolCallId: 'tool-1',
           output: {
-            slides: [
-              { type: 'cover', title: '封面', description: '已完成', content: '第一页' },
-            ],
+            slides: [{ type: 'cover', title: '封面', description: '已完成', content: '第一页' }],
           },
         },
       ],
@@ -33,9 +31,7 @@ test('extractLatestPptPlanState keeps the latest draft and completed tool result
           state: 'input-available',
           toolCallId: 'tool-2',
           args: {
-            slides: [
-              { type: 'cover', title: '新草案', description: '流式中', content: '第二版' },
-            ],
+            slides: [{ type: 'cover', title: '新草案', description: '流式中', content: '第二版' }],
           },
         },
       ],
@@ -59,9 +55,7 @@ test('shouldSyncCompletedPptPlan only allows syncing completed plans after chat 
           state: 'output-available',
           toolCallId: 'tool-1',
           output: {
-            slides: [
-              { type: 'cover', title: '封面', description: '介绍', content: '内容' },
-            ],
+            slides: [{ type: 'cover', title: '封面', description: '介绍', content: '内容' }],
           },
         },
       ],
@@ -101,9 +95,12 @@ test('getPptPlanSignature ignores backend ids and media fields when comparing pl
 
   assert.equal(first, second);
   assert.deepEqual(createPptPlan([]), undefined);
-  assert.deepEqual(createPptPlan([{ id: '', type: 'content', title: '页', description: '描述', content: '' }]), {
-    slides: [{ id: '', type: 'content', title: '页', description: '描述', content: '' }],
-  });
+  assert.deepEqual(
+    createPptPlan([{ id: '', type: 'content', title: '页', description: '描述', content: '' }]),
+    {
+      slides: [{ id: '', type: 'content', title: '页', description: '描述', content: '' }],
+    }
+  );
 });
 
 test('shouldApplyIncomingPlanToModal blocks prop sync while editing or mutating', () => {

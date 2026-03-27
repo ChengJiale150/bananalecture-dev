@@ -98,7 +98,10 @@ function mapProjectRecord(dto: ProjectDetailDTO): ProjectRecord {
     updatedAt: parseApiTimestamp(dto.updated_at),
     messages: safeParseProjectMessages(dto.messages),
     videoPath: dto.video_path ?? undefined,
-    pptPlan: dto.slides.length > 0 ? { slides: dto.slides.sort((a, b) => a.idx - b.idx).map((slide) => mapSlide(slide)) } : undefined,
+    pptPlan:
+      dto.slides.length > 0
+        ? { slides: dto.slides.sort((a, b) => a.idx - b.idx).map(slide => mapSlide(slide)) }
+        : undefined,
   };
 }
 
@@ -189,7 +192,11 @@ export async function updateProjectMessages(projectId: string, messages: any[]) 
   await apiClient.updateProject(projectId, { messages: stringifyProjectMessages(messages) });
 }
 
-export async function updateProjectTitleAndMessages(projectId: string, title: string, messages: any[]) {
+export async function updateProjectTitleAndMessages(
+  projectId: string,
+  title: string,
+  messages: any[]
+) {
   const apiClient = getApiClient();
   await apiClient.updateProject(projectId, {
     name: title,
@@ -207,7 +214,7 @@ export async function replaceProjectSlides(projectId: string, slides: Slide[]) {
   const response = await apiClient.createSlides(projectId, {
     slides: slides.map(createSlideInput),
   });
-  return response.data.items.sort((a, b) => a.idx - b.idx).map((slide) => mapSlide(slide));
+  return response.data.items.sort((a, b) => a.idx - b.idx).map(slide => mapSlide(slide));
 }
 
 export async function updateSlide(projectId: string, slideId: string, slide: Slide) {
@@ -262,7 +269,7 @@ export async function updateDialogue(projectId: string, slideId: string, dialogu
     projectId,
     slideId,
     dialogue.id,
-    createDialogueUpdateInput(dialogue),
+    createDialogueUpdateInput(dialogue)
   );
   return mapDialogue(response.data);
 }

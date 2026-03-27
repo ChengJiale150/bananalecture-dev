@@ -45,7 +45,8 @@ export function SlideViewer({
   }, [showModifyDialog]);
 
   const canModifyImage = Boolean(currentSlide.imagePath) && !isGeneratingAll && !isModifyingImage;
-  const canGenerateAudio = Boolean(currentSlide.dialogues?.length) && !isGeneratingAll && !isGeneratingAudio;
+  const canGenerateAudio =
+    Boolean(currentSlide.dialogues?.length) && !isGeneratingAll && !isGeneratingAudio;
   const canPlayAudio = Boolean(currentSlide.audioPath);
   const hasDialoguePreview = Boolean(currentSlide.dialogues?.length);
 
@@ -101,7 +102,9 @@ export function SlideViewer({
                 <div className="flex h-full min-h-0 flex-col">
                   <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-3 text-sm font-black text-gray-700">
                     <FileText size={16} />
-                    {hasDialoguePreview ? '当前尚未生成图片，展示对话' : '当前尚未生成图片，展示规划稿'}
+                    {hasDialoguePreview
+                      ? '当前尚未生成图片，展示对话'
+                      : '当前尚未生成图片，展示规划稿'}
                   </div>
                   <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
                     {hasDialoguePreview ? (
@@ -227,7 +230,7 @@ export function SlideViewer({
                 <X size={18} />
               </button>
             </div>
-            
+
             {slideImageUrl && (
               <div className="mb-4 aspect-video w-full overflow-hidden rounded-2xl border-2 border-gray-900 bg-[radial-gradient(circle_at_top,#ffffff,#dbeafe)]">
                 <img
@@ -240,7 +243,7 @@ export function SlideViewer({
 
             <textarea
               value={modifyPrompt}
-              onChange={(event) => setModifyPrompt(event.target.value)}
+              onChange={event => setModifyPrompt(event.target.value)}
               rows={5}
               className="w-full rounded-2xl border-2 border-gray-300 p-3 text-sm text-gray-800 outline-none focus:border-[var(--doraemon-blue)]"
               placeholder="例如：把背景改成教室场景，并保持卡通科普风格。"

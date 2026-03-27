@@ -26,7 +26,7 @@ export function getGenerationStageLabel(stage: GenerationStage) {
 }
 
 export function createGenerationStages(): GenerationStageState[] {
-  return GENERATION_STAGES.map((stage) => ({
+  return GENERATION_STAGES.map(stage => ({
     stage,
     label: getGenerationStageLabel(stage),
     status: 'pending',
@@ -38,9 +38,9 @@ export function createGenerationSession(
   projectId: string,
   mode: GenerationSessionMode,
   activeStage: GenerationStage,
-  task?: TaskProgress | null,
+  task?: TaskProgress | null
 ): GenerationSessionState {
-  const stages = createGenerationStages().map((stageState) =>
+  const stages = createGenerationStages().map(stageState =>
     stageState.stage === activeStage
       ? {
           ...stageState,
@@ -48,7 +48,7 @@ export function createGenerationSession(
           progress: task ? getTaskProgressPercent(task) : 0,
           taskId: task?.id,
         }
-      : stageState,
+      : stageState
   );
 
   return {
@@ -65,7 +65,7 @@ export function createGenerationSession(
 
 export function updateGenerationSessionTask(
   session: GenerationSessionState,
-  task: TaskProgress,
+  task: TaskProgress
 ): GenerationSessionState {
   if (!session.currentStage) {
     return {
@@ -85,7 +85,7 @@ export function updateGenerationSessionTask(
     status: mapTaskStatusToSessionStatus(task.status),
     activeTask: task,
     errorMessage: task.errorMessage ?? null,
-    stages: session.stages.map((stage) =>
+    stages: session.stages.map(stage =>
       stage.stage === session.currentStage
         ? {
             ...stage,
@@ -93,7 +93,7 @@ export function updateGenerationSessionTask(
             progress: nextStatus === 'completed' ? 100 : nextProgress,
             taskId: task.id,
           }
-        : stage,
+        : stage
     ),
     updatedAt: Date.now(),
   };
@@ -102,7 +102,7 @@ export function updateGenerationSessionTask(
 export function attachTaskToGenerationStage(
   session: GenerationSessionState,
   stage: GenerationStage,
-  task: TaskProgress,
+  task: TaskProgress
 ): GenerationSessionState {
   return {
     ...session,
@@ -110,15 +110,18 @@ export function attachTaskToGenerationStage(
     currentStage: stage,
     activeTask: task,
     errorMessage: task.errorMessage ?? null,
-    stages: session.stages.map((item) =>
+    stages: session.stages.map(item =>
       item.stage === stage
         ? {
             ...item,
             status: mapTaskStatusToStageStatus(task.status),
-            progress: mapTaskStatusToStageStatus(task.status) === 'completed' ? 100 : getTaskProgressPercent(task),
+            progress:
+              mapTaskStatusToStageStatus(task.status) === 'completed'
+                ? 100
+                : getTaskProgressPercent(task),
             taskId: task.id,
           }
-        : item,
+        : item
     ),
     updatedAt: Date.now(),
   };
@@ -126,10 +129,12 @@ export function attachTaskToGenerationStage(
 
 export function markGenerationStageCompleted(
   session: GenerationSessionState,
-  stage: GenerationStage,
+  stage: GenerationStage
 ): GenerationSessionState {
-  const nextStages = session.stages.map((item) =>
-    item.stage === stage ? { ...item, status: 'completed' as GenerationStageStatus, progress: 100 } : item,
+  const nextStages = session.stages.map(item =>
+    item.stage === stage
+      ? { ...item, status: 'completed' as GenerationStageStatus, progress: 100 }
+      : item
   );
 
   return {
@@ -143,7 +148,7 @@ export function markGenerationStageCompleted(
 
 export function advanceGenerationSession(
   session: GenerationSessionState,
-  nextStage: GenerationStage | null,
+  nextStage: GenerationStage | null
 ): GenerationSessionState {
   if (!nextStage) {
     return {
@@ -160,10 +165,10 @@ export function advanceGenerationSession(
     currentStage: nextStage,
     status: 'running',
     activeTask: null,
-    stages: session.stages.map((stage) =>
+    stages: session.stages.map(stage =>
       stage.stage === nextStage
         ? { ...stage, status: 'running', progress: 0, taskId: undefined }
-        : stage,
+        : stage
     ),
     updatedAt: Date.now(),
   };
@@ -172,7 +177,7 @@ export function advanceGenerationSession(
 export function finalizeGenerationSession(
   session: GenerationSessionState,
   status: Extract<GenerationSessionState['status'], 'failed' | 'cancelled' | 'completed'>,
-  task?: TaskProgress | null,
+  task?: TaskProgress | null
 ): GenerationSessionState {
   const currentStage = session.currentStage;
 
@@ -182,7 +187,7 @@ export function finalizeGenerationSession(
     activeTask: task ?? null,
     errorMessage: task?.errorMessage ?? session.errorMessage ?? null,
     stages: currentStage
-      ? session.stages.map((stage) =>
+      ? session.stages.map(stage =>
           stage.stage === currentStage
             ? {
                 ...stage,
@@ -190,7 +195,7 @@ export function finalizeGenerationSession(
                 progress: status === 'completed' ? 100 : stage.progress,
                 taskId: task?.id ?? stage.taskId,
               }
-            : stage,
+            : stage
         )
       : session.stages,
     updatedAt: Date.now(),
@@ -222,7 +227,7 @@ export function getGenerationOverallProgress(session: GenerationSessionState | n
 
   if (session.mode === 'single-stage') {
     const activeStage = session.currentStage
-      ? session.stages.find((stage) => stage.stage === session.currentStage)
+      ? session.stages.find(stage => stage.stage === session.currentStage)
       : null;
 
     if (!activeStage) {
@@ -251,7 +256,7 @@ export function getCurrentGenerationStageState(session: GenerationSessionState |
     return null;
   }
 
-  return session.stages.find((stage) => stage.stage === session.currentStage) ?? null;
+  return session.stages.find(stage => stage.stage === session.currentStage) ?? null;
 }
 
 export function isGenerationSessionActive(session: GenerationSessionState | null) {

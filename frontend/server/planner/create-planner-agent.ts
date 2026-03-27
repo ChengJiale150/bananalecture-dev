@@ -25,10 +25,7 @@ export const PlannerAgent = new ToolLoopAgent({
 
 export type PlannerAgentUIMessage = InferAgentUIMessage<typeof PlannerAgent>;
 
-export function createPlannerAgent(
-  chatId: string,
-  options?: PlannerOptions,
-) {
+export function createPlannerAgent(chatId: string, options?: PlannerOptions) {
   return new ToolLoopAgent({
     model: kimiClient(process.env.OPENAI_MODEL ?? 'kimi-k2.5'),
     instructions: buildSystemPrompt(options),

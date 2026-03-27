@@ -45,19 +45,19 @@
 
 ### Common Commands
 
-- `npm run dev`: 启动本地开发环境
-- `npm run lint`: 运行 ESLint
-- `npm run typecheck`: 先生成 Next 类型，再执行 TypeScript 检查
-- `npm run test`: 运行单元测试
-- `npm run build`: 运行生产构建
-- `npm run check`: 依次执行 lint、typecheck、test
+- `bun run dev`: 启动本地开发环境
+- `bun run lint`: 运行 ESLint
+- `bun run typecheck`: 先生成 Next 类型，再执行 TypeScript 检查
+- `bun run test`: 运行单元测试
+- `bun run build`: 运行生产构建
+- `bun run check`: 依次执行 lint、typecheck、test
 
 ### Workflow
 
 1. 先阅读相关 feature、shared、server 代码，确认变更落点。
 2. 新增行为时优先补单元测试，至少覆盖纯逻辑和 API 映射。
 3. 实现时保持目录边界，不要为省事跨层直接引用。
-4. 完成后至少运行 `npm run test`、`npm run typecheck`；涉及页面或路由改动时再跑 `npm run build`。
+4. 完成后至少运行 `bun run test`、`bun run typecheck`；涉及页面或路由改动时再跑 `bun run build`。
 
 ## Guardrails
 
@@ -65,4 +65,5 @@
 - 不要在组件中硬编码后端基础 URL、任务轮询协议或资源路径。
 
 ### Commit
+
 Before committing your changes, please ensure that your code passes all quality checks and adheres to the commit message format. For detailed instructions, please refer to [commit.md](docs/commit.md).

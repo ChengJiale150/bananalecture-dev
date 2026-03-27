@@ -59,7 +59,7 @@ export function writeCachedProject(project: ProjectRecord) {
 
 export function updateCachedProject(
   projectId: string,
-  updater: (project: ProjectRecord) => ProjectRecord,
+  updater: (project: ProjectRecord) => ProjectRecord
 ) {
   const current = readCachedProject(projectId);
   if (!current) {
@@ -115,7 +115,10 @@ export function writeCachedDialogues(projectId: string, slideId: string, dialogu
     return;
   }
 
-  window.sessionStorage.setItem(getDialoguesStorageKey(projectId, slideId), JSON.stringify(dialogues));
+  window.sessionStorage.setItem(
+    getDialoguesStorageKey(projectId, slideId),
+    JSON.stringify(dialogues)
+  );
 }
 
 export function clearCachedDialogues(projectId: string, slideId: string) {
@@ -151,5 +154,5 @@ export function clearProjectPreviewCache(projectId: string) {
     }
   }
 
-  keysToDelete.forEach((key) => window.sessionStorage.removeItem(key));
+  keysToDelete.forEach(key => window.sessionStorage.removeItem(key));
 }

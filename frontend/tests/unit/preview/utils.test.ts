@@ -15,7 +15,10 @@ const dialogues: Dialogue[] = [
 
 test('reorderDialoguesLocally swaps the selected dialogue with its adjacent item', () => {
   const result = reorderDialoguesLocally(dialogues, 'dialogue-2', -1);
-  assert.deepEqual(result.map((dialogue) => dialogue.id), ['dialogue-2', 'dialogue-1', 'dialogue-3']);
+  assert.deepEqual(
+    result.map(dialogue => dialogue.id),
+    ['dialogue-2', 'dialogue-1', 'dialogue-3']
+  );
 });
 
 test('upsertDialogue updates existing dialogue and appends new dialogue when missing', () => {
@@ -29,10 +32,16 @@ test('upsertDialogue updates existing dialogue and appends new dialogue when mis
     emotion: '无明显情感',
     speed: '中速',
   });
-  assert.deepEqual(appended.map((dialogue) => dialogue.id), ['dialogue-1', 'dialogue-2', 'dialogue-3', 'dialogue-4']);
+  assert.deepEqual(
+    appended.map(dialogue => dialogue.id),
+    ['dialogue-1', 'dialogue-2', 'dialogue-3', 'dialogue-4']
+  );
 });
 
 test('removeDialogueById removes only the specified dialogue', () => {
   const result = removeDialogueById(dialogues, 'dialogue-2');
-  assert.deepEqual(result.map((dialogue) => dialogue.id), ['dialogue-1', 'dialogue-3']);
+  assert.deepEqual(
+    result.map(dialogue => dialogue.id),
+    ['dialogue-1', 'dialogue-3']
+  );
 });

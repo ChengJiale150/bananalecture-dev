@@ -3,19 +3,20 @@
 @tailwind utilities;
 
 :root {
-  --doraemon-blue: #0096E6;
-  --doraemon-red: #DD0000;
-  --doraemon-yellow: #FFD700;
-  --doraemon-white: #FFFFFF;
+  --doraemon-blue: #0096e6;
+  --doraemon-red: #dd0000;
+  --doraemon-yellow: #ffd700;
+  --doraemon-white: #ffffff;
   --doraemon-dark: #333333;
   --doraemon-border: 3px solid #333333;
   --doraemon-shadow: 4px 4px 0px #333333;
 }
 
 body {
-  background-color: #F0F8FF; /* Light blue background */
+  background-color: #f0f8ff; /* Light blue background */
   color: var(--doraemon-dark);
-  font-family: 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', sans-serif; /* Cartoonish font fallback */
+  font-family:
+    'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', sans-serif; /* Cartoonish font fallback */
 }
 
 @layer components {
@@ -39,7 +40,7 @@ body {
   .doraemon-btn-primary {
     @apply bg-[var(--doraemon-blue)] text-white hover:brightness-110;
   }
-  
+
   .doraemon-btn-danger {
     @apply bg-[var(--doraemon-red)] text-white hover:brightness-110;
   }

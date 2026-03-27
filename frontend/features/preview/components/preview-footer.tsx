@@ -32,7 +32,7 @@ export function PreviewFooter({
         </button>
 
         <div className="flex items-center gap-1.5 rounded-2xl border-2 border-gray-900 bg-[#F0F8FF] px-2 py-1.5 shadow-[2px_2px_0px_rgba(0,0,0,1)]">
-          {visiblePages.map((page) => (
+          {visiblePages.map(page => (
             <button
               key={page}
               onClick={() => onPageSelect(page)}

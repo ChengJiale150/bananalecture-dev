@@ -30,7 +30,11 @@ export function clampPage(page: number, totalPages: number) {
   return Math.min(Math.max(1, Math.floor(page) || 1), normalizedTotal);
 }
 
-export function getVisiblePaginationPages(currentPage: number, totalPages: number, siblingCount = 1) {
+export function getVisiblePaginationPages(
+  currentPage: number,
+  totalPages: number,
+  siblingCount = 1
+) {
   const safeTotalPages = Math.max(1, totalPages);
   const safeCurrentPage = clampPage(currentPage, safeTotalPages);
   const start = Math.max(1, safeCurrentPage - siblingCount);
@@ -44,7 +48,10 @@ export function getVisiblePaginationPages(currentPage: number, totalPages: numbe
   return [...pages].sort((left, right) => left - right);
 }
 
-export function getSlideIndexFromPageParam(page: number | string | null | undefined, totalSlides: number) {
+export function getSlideIndexFromPageParam(
+  page: number | string | null | undefined,
+  totalSlides: number
+) {
   if (totalSlides <= 0) return 0;
   return clampPage(normalizePageValue(page, 1), totalSlides) - 1;
 }

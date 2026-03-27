@@ -34,7 +34,7 @@ test('listProjects requests paginated data and maps pagination fields', async ()
       {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
-      },
+      }
     );
   }) as typeof fetch;
 
@@ -125,7 +125,7 @@ test('getProject maps ISO timestamps to numbers, preserves storage keys, and sor
       {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
-      },
+      }
     );
   }) as typeof fetch;
 
@@ -221,7 +221,7 @@ test('modifySlideImage posts prompt payload to the proxied modify endpoint', asy
       {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
-      },
+      }
     );
   }) as typeof fetch;
 
@@ -231,7 +231,10 @@ test('modifySlideImage posts prompt payload to the proxied modify endpoint', asy
 
     assert.equal(calls.length, 1);
     assert.equal((calls[0].init?.method ?? 'GET').toUpperCase(), 'POST');
-    assert.match(String(calls[0].input), /\/api\/v1\/projects\/project-1\/slides\/slide-2\/image\/modify/);
+    assert.match(
+      String(calls[0].input),
+      /\/api\/v1\/projects\/project-1\/slides\/slide-2\/image\/modify/
+    );
     assert.deepEqual(JSON.parse(String(calls[0].init?.body)), { prompt: '改成教室背景' });
   } finally {
     globalThis.fetch = originalFetch;
@@ -254,7 +257,7 @@ test('reorderDialogues posts ordered dialogue ids to the proxy endpoint', async 
       {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
-      },
+      }
     );
   }) as typeof fetch;
 
@@ -264,8 +267,13 @@ test('reorderDialogues posts ordered dialogue ids to the proxy endpoint', async 
 
     assert.equal(calls.length, 1);
     assert.equal((calls[0].init?.method ?? 'GET').toUpperCase(), 'POST');
-    assert.match(String(calls[0].input), /\/api\/v1\/projects\/project-1\/slides\/slide-2\/dialogues\/reorder/);
-    assert.deepEqual(JSON.parse(String(calls[0].init?.body)), { dialogue_ids: ['dialogue-2', 'dialogue-1'] });
+    assert.match(
+      String(calls[0].input),
+      /\/api\/v1\/projects\/project-1\/slides\/slide-2\/dialogues\/reorder/
+    );
+    assert.deepEqual(JSON.parse(String(calls[0].init?.body)), {
+      dialogue_ids: ['dialogue-2', 'dialogue-1'],
+    });
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -287,7 +295,7 @@ test('reorderSlides posts ordered slide ids to the proxy endpoint', async () => 
       {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
-      },
+      }
     );
   }) as typeof fetch;
 
@@ -298,7 +306,9 @@ test('reorderSlides posts ordered slide ids to the proxy endpoint', async () => 
     assert.equal(calls.length, 1);
     assert.equal((calls[0].init?.method ?? 'GET').toUpperCase(), 'POST');
     assert.match(String(calls[0].input), /\/api\/v1\/projects\/project-1\/slides\/reorder/);
-    assert.deepEqual(JSON.parse(String(calls[0].init?.body)), { slide_ids: ['slide-3', 'slide-1'] });
+    assert.deepEqual(JSON.parse(String(calls[0].init?.body)), {
+      slide_ids: ['slide-3', 'slide-1'],
+    });
   } finally {
     globalThis.fetch = originalFetch;
   }

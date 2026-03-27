@@ -49,5 +49,8 @@ test('absolute baseUrl still builds absolute upstream URLs', async () => {
 
   assert.equal(calls.length, 1);
   assert.equal(String(calls[0].input), 'http://localhost:8000/api/v1/tasks/task-1');
-  assert.equal(requester.buildFileUrl('/projects/project-1/video/file'), 'http://localhost:8000/api/v1/projects/project-1/video/file');
+  assert.equal(
+    requester.buildFileUrl('/projects/project-1/video/file'),
+    'http://localhost:8000/api/v1/projects/project-1/video/file'
+  );
 });

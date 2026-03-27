@@ -51,14 +51,12 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
         message: error instanceof Error ? error.message : 'Proxy configuration error',
         data: null,
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 
   const body =
-    request.method === 'GET' || request.method === 'HEAD'
-      ? undefined
-      : await request.arrayBuffer();
+    request.method === 'GET' || request.method === 'HEAD' ? undefined : await request.arrayBuffer();
 
   let upstreamResponse: Response;
 
@@ -76,7 +74,7 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
         message: error instanceof Error ? error.message : 'Failed to reach upstream API',
         data: null,
       },
-      { status: 502 },
+      { status: 502 }
     );
   }
 

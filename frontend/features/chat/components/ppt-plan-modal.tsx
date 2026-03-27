@@ -1,6 +1,19 @@
 'use client';
 
-import { X, Sparkles, BookOpen, Lightbulb, FileText, Star, Edit2, Save, Trash2, Plus, ChevronUp, ChevronDown } from 'lucide-react';
+import {
+  X,
+  Sparkles,
+  BookOpen,
+  Lightbulb,
+  FileText,
+  Star,
+  Edit2,
+  Save,
+  Trash2,
+  Plus,
+  ChevronUp,
+  ChevronDown,
+} from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -61,45 +74,69 @@ export default function PPTPlanModal({
 
   const getSlideIcon = (type: SlideType) => {
     switch (type) {
-      case 'cover': return <Sparkles size={20} className="text-[var(--doraemon-yellow)]" />;
-      case 'introduction': return <BookOpen size={20} className="text-[var(--doraemon-blue)]" />;
-      case 'content': return <Lightbulb size={20} className="text-yellow-500" />;
-      case 'summary': return <FileText size={20} className="text-green-500" />;
-      case 'ending': return <Star size={20} className="text-pink-500" />;
-      default: return <FileText size={20} />;
+      case 'cover':
+        return <Sparkles size={20} className="text-[var(--doraemon-yellow)]" />;
+      case 'introduction':
+        return <BookOpen size={20} className="text-[var(--doraemon-blue)]" />;
+      case 'content':
+        return <Lightbulb size={20} className="text-yellow-500" />;
+      case 'summary':
+        return <FileText size={20} className="text-green-500" />;
+      case 'ending':
+        return <Star size={20} className="text-pink-500" />;
+      default:
+        return <FileText size={20} />;
     }
   };
 
   const getSlideTypeLabel = (type: SlideType) => {
     switch (type) {
-      case 'cover': return '封面页';
-      case 'introduction': return '引入页';
-      case 'content': return '正文页';
-      case 'summary': return '总结页';
-      case 'ending': return '结束页';
-      default: return type;
+      case 'cover':
+        return '封面页';
+      case 'introduction':
+        return '引入页';
+      case 'content':
+        return '正文页';
+      case 'summary':
+        return '总结页';
+      case 'ending':
+        return '结束页';
+      default:
+        return type;
     }
   };
 
   const getSlideBorderColor = (type: SlideType) => {
     switch (type) {
-      case 'cover': return 'border-[var(--doraemon-yellow)]';
-      case 'introduction': return 'border-[var(--doraemon-blue)]';
-      case 'content': return 'border-yellow-400';
-      case 'summary': return 'border-green-400';
-      case 'ending': return 'border-pink-400';
-      default: return 'border-gray-300';
+      case 'cover':
+        return 'border-[var(--doraemon-yellow)]';
+      case 'introduction':
+        return 'border-[var(--doraemon-blue)]';
+      case 'content':
+        return 'border-yellow-400';
+      case 'summary':
+        return 'border-green-400';
+      case 'ending':
+        return 'border-pink-400';
+      default:
+        return 'border-gray-300';
     }
   };
 
   const getSlideShadowColor = (type: SlideType) => {
     switch (type) {
-      case 'cover': return 'shadow-[4px_4px_0px_var(--doraemon-yellow)]';
-      case 'introduction': return 'shadow-[4px_4px_0px_var(--doraemon-blue)]';
-      case 'content': return 'shadow-[4px_4px_0px_rgba(250,204,21,1)]';
-      case 'summary': return 'shadow-[4px_4px_0px_rgba(74,222,128,1)]';
-      case 'ending': return 'shadow-[4px_4px_0px_rgba(244,114,182,1)]';
-      default: return 'shadow-[4px_4px_0px_rgba(0,0,0,1)]';
+      case 'cover':
+        return 'shadow-[4px_4px_0px_var(--doraemon-yellow)]';
+      case 'introduction':
+        return 'shadow-[4px_4px_0px_var(--doraemon-blue)]';
+      case 'content':
+        return 'shadow-[4px_4px_0px_rgba(250,204,21,1)]';
+      case 'summary':
+        return 'shadow-[4px_4px_0px_rgba(74,222,128,1)]';
+      case 'ending':
+        return 'shadow-[4px_4px_0px_rgba(244,114,182,1)]';
+      default:
+        return 'shadow-[4px_4px_0px_rgba(0,0,0,1)]';
     }
   };
 
@@ -114,7 +151,9 @@ export default function PPTPlanModal({
     try {
       const updatedSlide = await onUpdateSlide(editingSlide);
       if (!updatedSlide) return;
-      setSlides((prev) => prev.map((slide, index) => (index === editingSlideIndex ? updatedSlide : slide)));
+      setSlides(prev =>
+        prev.map((slide, index) => (index === editingSlideIndex ? updatedSlide : slide))
+      );
       setEditingSlideIndex(null);
       setEditingSlide(null);
     } finally {
@@ -130,7 +169,7 @@ export default function PPTPlanModal({
     setSlides(nextSlides);
     setIsMutating(true);
     try {
-      const success = await onReorderSlides(nextSlides.map((slide) => slide.id));
+      const success = await onReorderSlides(nextSlides.map(slide => slide.id));
       if (!success) {
         setSlides(previousSlides);
       }
@@ -167,7 +206,7 @@ export default function PPTPlanModal({
     try {
       const createdSlide = await onAddSlide(createNewSlideDraft());
       if (!createdSlide) return;
-      setSlides((prev) => [...prev, createdSlide]);
+      setSlides(prev => [...prev, createdSlide]);
       setEditingSlideIndex(slides.length);
       setEditingSlide(createdSlide);
     } finally {
@@ -185,7 +224,9 @@ export default function PPTPlanModal({
             </div>
             <div>
               <h2 className="text-xl font-black text-gray-900">PPT 规划编辑器</h2>
-              <p className="text-sm text-gray-500">{slides.length} 页，流式预览，完成后统一同步到后端</p>
+              <p className="text-sm text-gray-500">
+                {slides.length} 页，流式预览，完成后统一同步到后端
+              </p>
             </div>
           </div>
           <button
@@ -212,7 +253,9 @@ export default function PPTPlanModal({
                         </div>
                         <select
                           value={editingSlide?.type}
-                          onChange={(e) => setEditingSlide({ ...editingSlide!, type: e.target.value as SlideType })}
+                          onChange={e =>
+                            setEditingSlide({ ...editingSlide!, type: e.target.value as SlideType })
+                          }
                           className="border-2 border-gray-300 rounded-lg px-2 py-1 text-sm font-medium"
                         >
                           <option value="cover">封面页</option>
@@ -231,7 +274,10 @@ export default function PPTPlanModal({
                           <Save size={16} />
                         </button>
                         <button
-                          onClick={() => { setEditingSlideIndex(null); setEditingSlide(null); }}
+                          onClick={() => {
+                            setEditingSlideIndex(null);
+                            setEditingSlide(null);
+                          }}
                           disabled={isMutating}
                           className="p-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors border-2 border-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
@@ -242,20 +288,22 @@ export default function PPTPlanModal({
                     <input
                       type="text"
                       value={editingSlide?.title || ''}
-                      onChange={(e) => setEditingSlide({ ...editingSlide!, title: e.target.value })}
+                      onChange={e => setEditingSlide({ ...editingSlide!, title: e.target.value })}
                       className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 font-bold"
                       placeholder="标题"
                     />
                     <textarea
                       value={editingSlide?.description || ''}
-                      onChange={(e) => setEditingSlide({ ...editingSlide!, description: e.target.value })}
+                      onChange={e =>
+                        setEditingSlide({ ...editingSlide!, description: e.target.value })
+                      }
                       className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm resize-none"
                       rows={2}
                       placeholder="描述"
                     />
                     <textarea
                       value={editingSlide?.content || ''}
-                      onChange={(e) => setEditingSlide({ ...editingSlide!, content: e.target.value })}
+                      onChange={e => setEditingSlide({ ...editingSlide!, content: e.target.value })}
                       className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm resize-none"
                       rows={6}
                       placeholder="详细内容 (支持 Markdown)"
@@ -270,7 +318,9 @@ export default function PPTPlanModal({
                         </div>
                         <div className="flex items-center gap-2">
                           {getSlideIcon(slide.type)}
-                          <span className="font-bold text-gray-700">{getSlideTypeLabel(slide.type)}</span>
+                          <span className="font-bold text-gray-700">
+                            {getSlideTypeLabel(slide.type)}
+                          </span>
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
@@ -284,7 +334,9 @@ export default function PPTPlanModal({
                         </button>
                         <button
                           onClick={() => void handleMoveSlide(index, 1)}
-                          disabled={index === slides.length - 1 || editingSlideIndex !== null || isMutating}
+                          disabled={
+                            index === slides.length - 1 || editingSlideIndex !== null || isMutating
+                          }
                           className={`p-2 rounded-lg transition-colors ${index === slides.length - 1 || editingSlideIndex !== null || isMutating ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-gray-100 text-gray-600'}`}
                           title="下移"
                         >

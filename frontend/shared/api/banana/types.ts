@@ -1,6 +1,13 @@
 export const SLIDE_TYPES = ['cover', 'introduction', 'content', 'summary', 'ending'] as const;
 export const DIALOGUE_ROLES = ['大雄', '哆啦A梦', '旁白', '其他男声', '其他女声', '道具'] as const;
-export const DIALOGUE_EMOTIONS = ['开心的', '悲伤的', '生气的', '害怕的', '惊讶的', '无明显情感'] as const;
+export const DIALOGUE_EMOTIONS = [
+  '开心的',
+  '悲伤的',
+  '生气的',
+  '害怕的',
+  '惊讶的',
+  '无明显情感',
+] as const;
 export const DIALOGUE_SPEEDS = ['慢速', '中速', '快速'] as const;
 export const TASK_TYPES = [
   'dialogue_generation',

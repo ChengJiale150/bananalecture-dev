@@ -53,7 +53,7 @@ const EMPTY_PAGINATION: ProjectListPagination = {
 };
 
 function extractAutoTitle(messages: any[]) {
-  const firstMessage = messages.find((message) => message?.role === 'user');
+  const firstMessage = messages.find(message => message?.role === 'user');
   if (!firstMessage) return DEFAULT_PROJECT_TITLE;
   const textPart = Array.isArray(firstMessage.parts)
     ? firstMessage.parts.find((part: any) => part?.type === 'text')?.text
@@ -101,7 +101,9 @@ function ChatInterface({
         const nextMessages = latestMessagesRef.current;
         const nextSignature = stringifyProjectMessages(nextMessages);
         const nextTitle =
-          projectTitleRef.current === DEFAULT_PROJECT_TITLE ? extractAutoTitle(nextMessages) : projectTitleRef.current;
+          projectTitleRef.current === DEFAULT_PROJECT_TITLE
+            ? extractAutoTitle(nextMessages)
+            : projectTitleRef.current;
         const needsTitleUpdate = nextTitle !== projectTitleRef.current;
 
         if (nextSignature === lastSyncedSignatureRef.current && !needsTitleUpdate) {
@@ -112,7 +114,12 @@ function ChatInterface({
           await updateProjectTitleAndMessages(chatId, nextTitle, nextMessages);
           projectTitleRef.current = nextTitle;
           lastSyncedSignatureRef.current = nextSignature;
-          onProjectUpdate({ id: chatId, title: nextTitle, messages: nextMessages, updatedAt: Date.now() });
+          onProjectUpdate({
+            id: chatId,
+            title: nextTitle,
+            messages: nextMessages,
+            updatedAt: Date.now(),
+          });
           continue;
         }
 
@@ -143,7 +150,7 @@ function ChatInterface({
         void persistMessages();
       }, MESSAGE_SYNC_DELAY_MS);
     },
-    [persistMessages],
+    [persistMessages]
   );
 
   useEffect(() => {
@@ -186,7 +193,9 @@ function ChatInterface({
     }
 
     const nextSignature = stringifyProjectMessages(messages);
-    const mayNeedTitle = projectTitleRef.current === DEFAULT_PROJECT_TITLE && extractAutoTitle(messages) !== DEFAULT_PROJECT_TITLE;
+    const mayNeedTitle =
+      projectTitleRef.current === DEFAULT_PROJECT_TITLE &&
+      extractAutoTitle(messages) !== DEFAULT_PROJECT_TITLE;
     if (nextSignature === lastSyncedSignatureRef.current && !mayNeedTitle) {
       return;
     }
@@ -195,22 +204,27 @@ function ChatInterface({
     schedulePersist(immediate);
   }, [messages, schedulePersist, status]);
 
-  const commitPptPlan = useCallback((nextSlides: Slide[]) => {
-    const nextPlan = createPptPlan(nextSlides);
-    setPersistedPptPlan(nextPlan);
-    setDraftPptPlan(undefined);
-    lastSyncedPlanSignatureRef.current = getPptPlanSignature(nextSlides);
-    onProjectUpdate({ id: chatId, pptPlan: nextPlan });
-  }, [chatId, onProjectUpdate]);
+  const commitPptPlan = useCallback(
+    (nextSlides: Slide[]) => {
+      const nextPlan = createPptPlan(nextSlides);
+      setPersistedPptPlan(nextPlan);
+      setDraftPptPlan(undefined);
+      lastSyncedPlanSignatureRef.current = getPptPlanSignature(nextSlides);
+      onProjectUpdate({ id: chatId, pptPlan: nextPlan });
+    },
+    [chatId, onProjectUpdate]
+  );
 
   const handlePptPlanSlideUpdate = useCallback(
     async (slide: Slide) => {
       const updatedSlide = await updateSlide(chatId, slide.id, slide);
-      const nextSlides = (effectivePptPlan?.slides ?? []).map((item) => (item.id === slide.id ? updatedSlide : item));
+      const nextSlides = (effectivePptPlan?.slides ?? []).map(item =>
+        item.id === slide.id ? updatedSlide : item
+      );
       commitPptPlan(nextSlides);
       return updatedSlide;
     },
-    [chatId, commitPptPlan, effectivePptPlan?.slides],
+    [chatId, commitPptPlan, effectivePptPlan?.slides]
   );
 
   const handlePptPlanAddSlide = useCallback(
@@ -219,29 +233,29 @@ function ChatInterface({
       commitPptPlan([...(effectivePptPlan?.slides ?? []), createdSlide]);
       return createdSlide;
     },
-    [chatId, commitPptPlan, effectivePptPlan?.slides],
+    [chatId, commitPptPlan, effectivePptPlan?.slides]
   );
 
   const handlePptPlanDeleteSlide = useCallback(
     async (slideId: string) => {
       await deleteProjectSlide(chatId, slideId);
-      commitPptPlan((effectivePptPlan?.slides ?? []).filter((slide) => slide.id !== slideId));
+      commitPptPlan((effectivePptPlan?.slides ?? []).filter(slide => slide.id !== slideId));
       return true;
     },
-    [chatId, commitPptPlan, effectivePptPlan?.slides],
+    [chatId, commitPptPlan, effectivePptPlan?.slides]
   );
 
   const handlePptPlanReorderSlides = useCallback(
     async (slideIds: string[]) => {
       await reorderSlides(chatId, slideIds);
-      const slideMap = new Map((effectivePptPlan?.slides ?? []).map((slide) => [slide.id, slide]));
+      const slideMap = new Map((effectivePptPlan?.slides ?? []).map(slide => [slide.id, slide]));
       const nextSlides = slideIds
-        .map((slideId) => slideMap.get(slideId))
+        .map(slideId => slideMap.get(slideId))
         .filter((slide): slide is Slide => Boolean(slide));
       commitPptPlan(nextSlides);
       return true;
     },
-    [chatId, commitPptPlan, effectivePptPlan?.slides],
+    [chatId, commitPptPlan, effectivePptPlan?.slides]
   );
 
   const handleSendMessage = useCallback(
@@ -253,7 +267,7 @@ function ChatInterface({
       };
       sendMessage({ text }, { body });
     },
-    [chatId, effectivePptPlan, sendMessage],
+    [chatId, effectivePptPlan, sendMessage]
   );
 
   const handleOpenPreview = useCallback(() => {
@@ -298,10 +312,19 @@ function ChatInterface({
             <div className="bg-white p-8 rounded-full border-4 border-[var(--doraemon-blue)] shadow-[8px_8px_0px_rgba(0,0,0,1)] mb-6">
               <BrainCircuit size={64} className="text-[var(--doraemon-blue)]" />
             </div>
-            <h2 className="text-3xl font-black mb-2 text-gray-900 tracking-tight">Doraemon Agent</h2>
-            <p className="text-lg font-medium text-gray-600 mb-8">What can I help you with today?</p>
+            <h2 className="text-3xl font-black mb-2 text-gray-900 tracking-tight">
+              Doraemon Agent
+            </h2>
+            <p className="text-lg font-medium text-gray-600 mb-8">
+              What can I help you with today?
+            </p>
             <div className="w-full max-w-3xl">
-              <ChatInput status={status} onSubmit={handleSendMessage} stop={stop} isCentered={true} />
+              <ChatInput
+                status={status}
+                onSubmit={handleSendMessage}
+                stop={stop}
+                isCentered={true}
+              />
             </div>
           </div>
         ) : (
@@ -321,8 +344,11 @@ function ChatInterface({
 
             <div className="flex-1 overflow-y-auto p-4 scroll-smooth">
               <div className="space-y-6 max-w-3xl mx-auto pb-4">
-                {messages.map((message) => (
-                  <div key={message.id} className={`flex flex-col ${message.role === 'user' ? 'items-end' : 'items-start'}`}>
+                {messages.map(message => (
+                  <div
+                    key={message.id}
+                    className={`flex flex-col ${message.role === 'user' ? 'items-end' : 'items-start'}`}
+                  >
                     <div
                       className={`px-6 py-4 rounded-2xl max-w-[90%] lg:max-w-[80%] transition-all ${
                         message.role === 'user'
@@ -348,7 +374,10 @@ function ChatInterface({
                               const text = (part as { text?: string }).text;
                               if (typeof text !== 'string') return null;
                               return (
-                                <div key={index} className="prose prose-sm max-w-none dark:prose-invert">
+                                <div
+                                  key={index}
+                                  className="prose prose-sm max-w-none dark:prose-invert"
+                                >
                                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
                                 </div>
                               );
@@ -372,7 +401,10 @@ function ChatInterface({
 
                             case 'step-start':
                               return (
-                                <div key={index} className="flex items-center gap-2 text-xs text-gray-400 my-1 animate-pulse">
+                                <div
+                                  key={index}
+                                  className="flex items-center gap-2 text-xs text-gray-400 my-1 animate-pulse"
+                                >
                                   <BrainCircuit size={12} />
                                   <span>Thinking...</span>
                                 </div>
@@ -385,10 +417,19 @@ function ChatInterface({
                                   key={index}
                                   invocation={{
                                     toolName: 'create_ppt_plan',
-                                    args: p.args || p.toolInvocation?.args || p.input || p.toolInvocation?.input,
-                                    result: p.result || p.toolInvocation?.result || p.output || p.toolInvocation?.output,
+                                    args:
+                                      p.args ||
+                                      p.toolInvocation?.args ||
+                                      p.input ||
+                                      p.toolInvocation?.input,
+                                    result:
+                                      p.result ||
+                                      p.toolInvocation?.result ||
+                                      p.output ||
+                                      p.toolInvocation?.output,
                                     state: p.state || p.toolInvocation?.state,
-                                    toolCallId: p.toolCallId || p.toolInvocation?.toolCallId || 'unknown',
+                                    toolCallId:
+                                      p.toolCallId || p.toolInvocation?.toolCallId || 'unknown',
                                     approval: p.approval || p.toolInvocation?.approval,
                                   }}
                                 />
@@ -401,7 +442,9 @@ function ChatInterface({
                         })}
                         {!message.parts && (message as any).content && (
                           <div className="prose prose-sm max-w-none dark:prose-invert">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{(message as any).content}</ReactMarkdown>
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {(message as any).content}
+                            </ReactMarkdown>
                           </div>
                         )}
                       </div>
@@ -428,7 +471,12 @@ function ChatInterface({
 
             <div className="border-t border-gray-200 bg-gray-50">
               <div className="w-full max-w-3xl mx-auto px-4 py-4">
-                <ChatInput status={status} onSubmit={handleSendMessage} stop={stop} isCentered={false} />
+                <ChatInput
+                  status={status}
+                  onSubmit={handleSendMessage}
+                  stop={stop}
+                  isCentered={false}
+                />
               </div>
             </div>
           </>
@@ -440,7 +488,8 @@ function ChatInterface({
 
 export default function ChatPage() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
-  const [projectPagination, setProjectPagination] = useState<ProjectListPagination>(EMPTY_PAGINATION);
+  const [projectPagination, setProjectPagination] =
+    useState<ProjectListPagination>(EMPTY_PAGINATION);
   const [currentProject, setCurrentProject] = useState<ProjectRecord | null>(null);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [isLoadingProjectDetail, setIsLoadingProjectDetail] = useState(false);
@@ -478,7 +527,7 @@ export default function ChatPage() {
       if (id === currentProject?.id && currentProject) return;
       await refreshCurrentProject(id);
     },
-    [currentProject, refreshCurrentProject],
+    [currentProject, refreshCurrentProject]
   );
 
   const handlePageChange = useCallback(
@@ -488,7 +537,7 @@ export default function ChatPage() {
       }
       await loadProjectsPage(page);
     },
-    [loadProjectsPage, projectPagination.page, projectPagination.totalPages],
+    [loadProjectsPage, projectPagination.page, projectPagination.totalPages]
   );
 
   const handleNewProject = useCallback(async () => {
@@ -528,7 +577,13 @@ export default function ChatPage() {
         await handleNewProject();
       }
     },
-    [currentProject?.id, handleNewProject, loadProjectsPage, projectPagination.page, refreshCurrentProject],
+    [
+      currentProject?.id,
+      handleNewProject,
+      loadProjectsPage,
+      projectPagination.page,
+      refreshCurrentProject,
+    ]
   );
 
   const handleRenameProject = useCallback(
@@ -540,30 +595,33 @@ export default function ChatPage() {
         await refreshCurrentProject(id);
       }
     },
-    [currentProject?.id, loadProjectsPage, projectPagination.page, refreshCurrentProject],
+    [currentProject?.id, loadProjectsPage, projectPagination.page, refreshCurrentProject]
   );
 
-  const handleProjectUpdate = useCallback((updatedProject: Partial<ProjectRecord> & { id: string }) => {
-    setProjects((prev) =>
-      prev.map((project) =>
-        project.id === updatedProject.id
-          ? {
-              ...project,
-              title: updatedProject.title ?? project.title,
-              updatedAt: updatedProject.updatedAt ?? Date.now(),
-            }
-          : project,
-      ),
-    );
+  const handleProjectUpdate = useCallback(
+    (updatedProject: Partial<ProjectRecord> & { id: string }) => {
+      setProjects(prev =>
+        prev.map(project =>
+          project.id === updatedProject.id
+            ? {
+                ...project,
+                title: updatedProject.title ?? project.title,
+                updatedAt: updatedProject.updatedAt ?? Date.now(),
+              }
+            : project
+        )
+      );
 
-    setCurrentProject((prev) => {
-      if (!prev || prev.id !== updatedProject.id) return prev;
-      return {
-        ...prev,
-        ...updatedProject,
-      };
-    });
-  }, []);
+      setCurrentProject(prev => {
+        if (!prev || prev.id !== updatedProject.id) return prev;
+        return {
+          ...prev,
+          ...updatedProject,
+        };
+      });
+    },
+    []
+  );
 
   useEffect(() => {
     if (isLoadingProjects || currentProject || isCreatingProject) return;
@@ -574,12 +632,19 @@ export default function ChatPage() {
     }
 
     void handleNewProject();
-  }, [currentProject, handleNewProject, isCreatingProject, isLoadingProjects, projects, refreshCurrentProject]);
+  }, [
+    currentProject,
+    handleNewProject,
+    isCreatingProject,
+    isLoadingProjects,
+    projects,
+    refreshCurrentProject,
+  ]);
 
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar
-        projects={projects.map((project) => ({
+        projects={projects.map(project => ({
           id: project.id,
           title: project.title,
           createdAt: project.createdAt,
@@ -598,7 +663,11 @@ export default function ChatPage() {
 
       <main className="flex-1 relative">
         {currentProject ? (
-          <ChatInterface key={currentProject.id} project={currentProject} onProjectUpdate={handleProjectUpdate} />
+          <ChatInterface
+            key={currentProject.id}
+            project={currentProject}
+            onProjectUpdate={handleProjectUpdate}
+          />
         ) : (
           <div className="flex items-center justify-center h-full text-gray-400">
             <Loader2 className="animate-spin mr-2" /> Loading...

@@ -1,0 +1,32 @@
+set shell := ["bash", "-c"]
+
+# List all available recipes
+help:
+    @just --list
+
+# Install Bun if not present and install dependencies
+install:
+    @echo "Checking for bun..."
+    @if ! command -v bun > /dev/null; then \
+        echo "bun not found. Installing bun..."; \
+        curl -fsSL https://bun.sh/install | bash; \
+    else \
+        echo "bun is already installed."; \
+    fi
+
+    bun install
+    bun run pre-commit install || true
+    bun run pre-commit install --hook-type commit-msg || true
+
+# Start the development server
+run:
+    bun run dev
+
+# Remove temporary files and caches
+clean:
+    rm -rf .next
+    rm -rf .bun-cache
+    rm -rf .pre-commit
+    rm -rf node_modules/.cache
+    find . -type d -name ".turbo" -exec rm -rf {} + 2>/dev/null || true
+    find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true

@@ -22,7 +22,7 @@ export default function ChatInput({
   const [pageCount, setPageCount] = useState('5-10');
   const [audience, setAudience] = useState('beginner');
   const [style, setStyle] = useState('multi_panel');
-  
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const minRows = isCentered ? 8 : 2;
@@ -38,20 +38,20 @@ export default function ChatInput({
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (text.trim() === '') return;
-    
+
     if (isCentered) {
       onSubmit(text, {
         pageCount,
         audience,
-        style
+        style,
       });
     } else {
       onSubmit(text);
     }
-    
+
     setText('');
     if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = 'auto';
     }
   };
 
@@ -62,23 +62,23 @@ export default function ChatInput({
     }
   };
 
-  const containerClassName = isCentered
-    ? 'w-full'
-    : 'w-full pt-4 pb-6 px-4 bg-[#F0F8FF]';
+  const containerClassName = isCentered ? 'w-full' : 'w-full pt-4 pb-6 px-4 bg-[#F0F8FF]';
 
-  const selectClassName = "appearance-none bg-white border-2 border-gray-900 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 pr-8 font-medium cursor-pointer hover:bg-gray-50 transition-colors shadow-[2px_2px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none";
+  const selectClassName =
+    'appearance-none bg-white border-2 border-gray-900 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 pr-8 font-medium cursor-pointer hover:bg-gray-50 transition-colors shadow-[2px_2px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none';
 
   return (
     <div className={containerClassName}>
-      <div className={`max-w-3xl mx-auto relative border-2 border-gray-900 rounded-2xl bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] focus-within:translate-x-[-1px] focus-within:translate-y-[-1px] focus-within:shadow-[6px_6px_0px_rgba(0,0,0,1)] transition-all p-3 ${isCentered ? 'flex flex-col gap-3' : 'flex items-end gap-3'}`}>
-        
+      <div
+        className={`max-w-3xl mx-auto relative border-2 border-gray-900 rounded-2xl bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] focus-within:translate-x-[-1px] focus-within:translate-y-[-1px] focus-within:shadow-[6px_6px_0px_rgba(0,0,0,1)] transition-all p-3 ${isCentered ? 'flex flex-col gap-3' : 'flex items-end gap-3'}`}
+      >
         {isCentered && (
           <div className="flex flex-wrap gap-3 pb-2 border-b-2 border-dashed border-gray-200 w-full">
             <div className="relative">
               <Layers className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 pointer-events-none" />
-              <select 
+              <select
                 value={pageCount}
-                onChange={(e) => setPageCount(e.target.value)}
+                onChange={e => setPageCount(e.target.value)}
                 className={`${selectClassName} pl-9`}
               >
                 <option value="5-10">5-10页</option>
@@ -89,9 +89,9 @@ export default function ChatInput({
 
             <div className="relative">
               <Users className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 pointer-events-none" />
-              <select 
+              <select
                 value={audience}
-                onChange={(e) => setAudience(e.target.value)}
+                onChange={e => setAudience(e.target.value)}
                 className={`${selectClassName} pl-9`}
               >
                 <option value="beginner">初学者</option>
@@ -102,9 +102,9 @@ export default function ChatInput({
 
             <div className="relative">
               <Palette className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 pointer-events-none" />
-              <select 
+              <select
                 value={style}
-                onChange={(e) => setStyle(e.target.value)}
+                onChange={e => setStyle(e.target.value)}
                 className={`${selectClassName} pl-9`}
               >
                 <option value="multi_panel">多格动漫</option>
@@ -120,14 +120,18 @@ export default function ChatInput({
             ref={textareaRef}
             style={{ maxHeight: `${maxHeight}px` }}
             className="flex-1 bg-transparent outline-none resize-none py-2 px-2 text-sm md:text-base font-medium text-gray-800 placeholder-gray-400 overflow-y-auto"
-            placeholder={isCentered ? "Describe the topic you want to learn about..." : "Ask Doraemon something..."}
-            disabled={status !== 'ready' && status !== 'submitted'} 
+            placeholder={
+              isCentered
+                ? 'Describe the topic you want to learn about...'
+                : 'Ask Doraemon something...'
+            }
+            disabled={status !== 'ready' && status !== 'submitted'}
             value={text}
             onChange={e => setText(e.target.value)}
             onKeyDown={handleKeyDown}
             rows={minRows}
           />
-          
+
           {status === 'streaming' || status === 'submitted' ? (
             <button
               onClick={stop}

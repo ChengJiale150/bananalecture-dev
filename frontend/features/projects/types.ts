@@ -94,7 +94,13 @@ export interface TaskProgress {
 
 export const GENERATION_STAGES = ['images', 'dialogues', 'audio', 'video'] as const;
 export const GENERATION_SESSION_MODES = ['pipeline', 'single-stage'] as const;
-export const GENERATION_STAGE_STATUSES = ['pending', 'running', 'completed', 'failed', 'cancelled'] as const;
+export const GENERATION_STAGE_STATUSES = [
+  'pending',
+  'running',
+  'completed',
+  'failed',
+  'cancelled',
+] as const;
 export const GENERATION_SESSION_STATUSES = ['running', 'completed', 'failed', 'cancelled'] as const;
 
 export type GenerationStage = (typeof GENERATION_STAGES)[number];

@@ -78,7 +78,12 @@ export function createBananaLectureRequester(options: BananaLectureApiClientOpti
     const finalHeaders = new Headers(headers);
     const normalizedBody = normalizeBody(body);
 
-    if (normalizedBody !== undefined && normalizedBody !== null && !(normalizedBody instanceof FormData) && !finalHeaders.has('Content-Type')) {
+    if (
+      normalizedBody !== undefined &&
+      normalizedBody !== null &&
+      !(normalizedBody instanceof FormData) &&
+      !finalHeaders.has('Content-Type')
+    ) {
       finalHeaders.set('Content-Type', 'application/json');
     }
 
@@ -98,7 +103,11 @@ export function createBananaLectureRequester(options: BananaLectureApiClientOpti
     const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null;
 
     if (!response.ok) {
-      throw new BananaLectureApiError(payload?.message || response.statusText || 'Request failed', response.status, payload);
+      throw new BananaLectureApiError(
+        payload?.message || response.statusText || 'Request failed',
+        response.status,
+        payload
+      );
     }
 
     if (!payload) {
@@ -117,7 +126,11 @@ export function createBananaLectureRequester(options: BananaLectureApiClientOpti
       } catch {
         payload = await response.text().catch(() => null);
       }
-      throw new BananaLectureApiError(response.statusText || 'Request failed', response.status, payload);
+      throw new BananaLectureApiError(
+        response.statusText || 'Request failed',
+        response.status,
+        payload
+      );
     }
     return response.blob();
   }

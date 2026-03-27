@@ -15,7 +15,7 @@ function PreviewContent() {
   const projectIdFromUrl = searchParams.get('id');
   const pageFromUrl = searchParams.get('page');
   const refreshTokenFromUrl = searchParams.get('refresh');
-  
+
   const {
     plan,
     currentSlideIndex,
@@ -66,44 +66,44 @@ function PreviewContent() {
 
   return (
     <div className="h-screen bg-[#F0F8FF] flex flex-col overflow-hidden">
-        <PreviewHeader 
-          isGeneratingAll={isGeneratingAll}
-          isRefreshing={isRefreshing}
-          generationSession={generationSession}
-          overallGenerationProgress={overallGenerationProgress}
-          hasVideo={Boolean(projectVideoPath)}
-          handleStopGeneration={handleStopGeneration}
-          handleGenerateAll={handleGenerateAll}
-          handleStartStageGeneration={handleStartStageGeneration}
-          handleDownloadVideo={handleDownloadVideo}
-          handleForceRefresh={handleForceRefresh}
-        />
+      <PreviewHeader
+        isGeneratingAll={isGeneratingAll}
+        isRefreshing={isRefreshing}
+        generationSession={generationSession}
+        overallGenerationProgress={overallGenerationProgress}
+        hasVideo={Boolean(projectVideoPath)}
+        handleStopGeneration={handleStopGeneration}
+        handleGenerateAll={handleGenerateAll}
+        handleStartStageGeneration={handleStartStageGeneration}
+        handleDownloadVideo={handleDownloadVideo}
+        handleForceRefresh={handleForceRefresh}
+      />
 
       {plan && plan.slides.length > 0 && currentSlide ? (
         <div className="flex-1 min-h-0 p-4 pb-3">
           <div className="grid h-full min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
-          <SlideViewer 
-            currentSlide={currentSlide}
-            isGeneratingAll={isGeneratingAll}
-            isGeneratingImage={isGeneratingImage}
-            isModifyingImage={isModifyingImage}
-            isGeneratingDialogues={isGeneratingDialogues}
-            isGeneratingAudio={isGeneratingAudio}
-            handleGenerateDialogues={handleGenerateDialogues}
-            handleGenerateImage={handleGenerateImage}
-            handleModifyImage={handleModifyImage}
-            handleGenerateAudio={handleGenerateAudio}
-            slideImageUrl={currentSlideImageUrl}
-            slideAudioUrl={currentSlideAudioUrl}
-          />
-          <DialogueList
-            dialogues={displayDialogues}
-            isBusy={isDialogueActionPending}
-            onAdd={handleAddDialogue}
-            onUpdate={handleUpdateDialogue}
-            onDelete={handleDeleteDialogue}
-            onMove={handleMoveDialogue}
-          />
+            <SlideViewer
+              currentSlide={currentSlide}
+              isGeneratingAll={isGeneratingAll}
+              isGeneratingImage={isGeneratingImage}
+              isModifyingImage={isModifyingImage}
+              isGeneratingDialogues={isGeneratingDialogues}
+              isGeneratingAudio={isGeneratingAudio}
+              handleGenerateDialogues={handleGenerateDialogues}
+              handleGenerateImage={handleGenerateImage}
+              handleModifyImage={handleModifyImage}
+              handleGenerateAudio={handleGenerateAudio}
+              slideImageUrl={currentSlideImageUrl}
+              slideAudioUrl={currentSlideAudioUrl}
+            />
+            <DialogueList
+              dialogues={displayDialogues}
+              isBusy={isDialogueActionPending}
+              onAdd={handleAddDialogue}
+              onUpdate={handleUpdateDialogue}
+              onDelete={handleDeleteDialogue}
+              onMove={handleMoveDialogue}
+            />
           </div>
         </div>
       ) : (
@@ -111,10 +111,10 @@ function PreviewContent() {
       )}
 
       {plan && plan.slides.length > 0 && (
-        <PreviewFooter 
+        <PreviewFooter
           currentSlideIndex={currentSlideIndex}
           totalSlides={plan.slides.length}
-          onPageSelect={(page) => setCurrentSlideIndex(page - 1)}
+          onPageSelect={page => setCurrentSlideIndex(page - 1)}
         />
       )}
     </div>
@@ -123,11 +123,13 @@ function PreviewContent() {
 
 export default function PreviewPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#F0F8FF] flex items-center justify-center">
-        <Loader2 size={48} className="animate-spin text-[var(--doraemon-blue)]" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#F0F8FF] flex items-center justify-center">
+          <Loader2 size={48} className="animate-spin text-[var(--doraemon-blue)]" />
+        </div>
+      }
+    >
       <PreviewContent />
     </Suspense>
   );

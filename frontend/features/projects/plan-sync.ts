@@ -15,11 +15,11 @@ export function slideChanged(previous: Slide, next: Slide) {
 export async function syncManualPlanChanges(
   projectId: string,
   previousPlan: { slides: Slide[] } | undefined,
-  nextPlan: { slides: Slide[] },
+  nextPlan: { slides: Slide[] }
 ) {
   const previousSlides = previousPlan?.slides ?? [];
-  const previousById = new Map(previousSlides.map((slide) => [slide.id, slide]));
-  const incomingIds = new Set(nextPlan.slides.map((slide) => slide.id));
+  const previousById = new Map(previousSlides.map(slide => [slide.id, slide]));
+  const incomingIds = new Set(nextPlan.slides.map(slide => slide.id));
 
   for (const previousSlide of previousSlides) {
     if (!incomingIds.has(previousSlide.id)) {
@@ -46,7 +46,7 @@ export async function syncManualPlanChanges(
   if (resolvedSlides.length > 0) {
     await reorderSlides(
       projectId,
-      resolvedSlides.map((slide) => slide.id),
+      resolvedSlides.map(slide => slide.id)
     );
   }
 

@@ -21,7 +21,10 @@ test('safeParseProjectMessages falls back to an empty array for invalid payloads
 });
 
 test('stringifyProjectMessages serializes message arrays', () => {
-  assert.equal(stringifyProjectMessages([{ role: 'assistant', content: 'hello' }]), '[{"role":"assistant","content":"hello"}]');
+  assert.equal(
+    stringifyProjectMessages([{ role: 'assistant', content: 'hello' }]),
+    '[{"role":"assistant","content":"hello"}]'
+  );
 });
 
 test('pagination helpers normalize and clamp values', () => {

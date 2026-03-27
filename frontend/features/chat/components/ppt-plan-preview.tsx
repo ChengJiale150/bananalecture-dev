@@ -7,7 +7,13 @@ import dynamic from 'next/dynamic';
 
 // Lazy load the modal for better initial load performance
 const PPTPlanModal = dynamic(() => import('./ppt-plan-modal'), {
-  loading: () => <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"><div className="bg-white p-6 rounded-xl border-2 border-gray-900 animate-pulse">加载编辑器...</div></div>
+  loading: () => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white p-6 rounded-xl border-2 border-gray-900 animate-pulse">
+        加载编辑器...
+      </div>
+    </div>
+  ),
 });
 
 interface PPTPlanPreviewProps {
@@ -28,7 +34,7 @@ export default function PPTPlanPreview({
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const slides = pptPlan?.slides || [];
-  
+
   // Use useMemo for dots to avoid unnecessary recalculations
   const slideDots = useMemo(() => {
     if (!slides.length) return null;
@@ -41,9 +47,7 @@ export default function PPTPlanPreview({
             title={getSlideTypeLabel(slide.type)}
           />
         ))}
-        {slides.length > 8 && (
-          <div className="text-xs text-gray-400">+{slides.length - 8}</div>
-        )}
+        {slides.length > 8 && <div className="text-xs text-gray-400">+{slides.length - 8}</div>}
       </div>
     );
   }, [slides]);
@@ -67,7 +71,10 @@ export default function PPTPlanPreview({
               <div className="text-left flex-1 min-w-0">
                 <div className="font-bold text-gray-900">PPT 规划</div>
                 <div className="text-xs text-gray-500 truncate">
-                  {slides.slice(0, 3).map(s => s.title).join(' → ')}
+                  {slides
+                    .slice(0, 3)
+                    .map(s => s.title)
+                    .join(' → ')}
                   {slides.length > 3 ? ' ...' : ''}
                 </div>
               </div>
@@ -97,22 +104,34 @@ export default function PPTPlanPreview({
 
 function getSlideDotColor(type: SlideType) {
   switch (type) {
-    case 'cover': return 'bg-[var(--doraemon-yellow)]';
-    case 'introduction': return 'bg-[var(--doraemon-blue)]';
-    case 'content': return 'bg-yellow-400';
-    case 'summary': return 'bg-green-500';
-    case 'ending': return 'bg-pink-500';
-    default: return 'bg-gray-400';
+    case 'cover':
+      return 'bg-[var(--doraemon-yellow)]';
+    case 'introduction':
+      return 'bg-[var(--doraemon-blue)]';
+    case 'content':
+      return 'bg-yellow-400';
+    case 'summary':
+      return 'bg-green-500';
+    case 'ending':
+      return 'bg-pink-500';
+    default:
+      return 'bg-gray-400';
   }
 }
 
 function getSlideTypeLabel(type: SlideType) {
   switch (type) {
-    case 'cover': return '封面页';
-    case 'introduction': return '引入页';
-    case 'content': return '正文页';
-    case 'summary': return '总结页';
-    case 'ending': return '结束页';
-    default: return type;
+    case 'cover':
+      return '封面页';
+    case 'introduction':
+      return '引入页';
+    case 'content':
+      return '正文页';
+    case 'summary':
+      return '总结页';
+    case 'ending':
+      return '结束页';
+    default:
+      return type;
   }
 }

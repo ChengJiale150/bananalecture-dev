@@ -72,7 +72,7 @@ test('preview cache reads from sessionStorage and supports project updates', () 
 
     assert.deepEqual(readCachedProject(project.id), project);
 
-    const updated = updateCachedProject(project.id, (currentProject) => ({
+    const updated = updateCachedProject(project.id, currentProject => ({
       ...currentProject,
       title: 'Updated Project',
     }));

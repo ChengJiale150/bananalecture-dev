@@ -100,7 +100,7 @@ export function PreviewHeader({
         <div className="flex items-center gap-4 relative">
           <div className="relative">
             <button
-              onClick={() => setShowAdvancedTools((value) => !value)}
+              onClick={() => setShowAdvancedTools(value => !value)}
               className="flex items-center gap-2 px-4 py-2 bg-white text-orange-500 font-bold rounded-full border-2 border-orange-500 hover:bg-orange-50 transition-all"
             >
               <Settings size={18} />
@@ -140,7 +140,11 @@ export function PreviewHeader({
                 : 'bg-white text-green-500 border-green-500 hover:bg-green-50'
             }`}
           >
-            {isRefreshing ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}
+            {isRefreshing ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <RefreshCw size={18} />
+            )}
             {isRefreshing ? '重新加载中' : '刷新'}
           </button>
         </div>
@@ -155,7 +159,9 @@ export function PreviewHeader({
                 style={{ width: `${progressValue}%` }}
               />
             </div>
-            <div className="min-w-14 text-right text-sm font-black text-gray-900">{progressValue}%</div>
+            <div className="min-w-14 text-right text-sm font-black text-gray-900">
+              {progressValue}%
+            </div>
             {isGeneratingAll && (
               <button
                 onClick={handleStopGeneration}

@@ -50,9 +50,9 @@ export function normalizeDialogues(dialogues: any[]): Dialogue[] {
 export function reorderDialoguesLocally(
   dialogues: Dialogue[],
   dialogueId: string,
-  direction: -1 | 1,
+  direction: -1 | 1
 ) {
-  const index = dialogues.findIndex((dialogue) => dialogue.id === dialogueId);
+  const index = dialogues.findIndex(dialogue => dialogue.id === dialogueId);
   const targetIndex = index + direction;
   if (index < 0 || targetIndex < 0 || targetIndex >= dialogues.length) {
     return dialogues;
@@ -66,14 +66,14 @@ export function reorderDialoguesLocally(
 }
 
 export function upsertDialogue(dialogues: Dialogue[], nextDialogue: Dialogue) {
-  const index = dialogues.findIndex((dialogue) => dialogue.id === nextDialogue.id);
+  const index = dialogues.findIndex(dialogue => dialogue.id === nextDialogue.id);
   if (index < 0) {
     return [...dialogues, nextDialogue];
   }
 
-  return dialogues.map((dialogue) => (dialogue.id === nextDialogue.id ? nextDialogue : dialogue));
+  return dialogues.map(dialogue => (dialogue.id === nextDialogue.id ? nextDialogue : dialogue));
 }
 
 export function removeDialogueById(dialogues: Dialogue[], dialogueId: string) {
-  return dialogues.filter((dialogue) => dialogue.id !== dialogueId);
+  return dialogues.filter(dialogue => dialogue.id !== dialogueId);
 }

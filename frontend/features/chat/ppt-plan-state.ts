@@ -57,12 +57,19 @@ function isCompletedToolState(state: string | undefined) {
 }
 
 function getToolSlides(part: ToolPartLike): Slide[] | null {
-  const outputSlides = normalizeToolSlides(part.output?.slides ?? part.toolInvocation?.output?.slides);
+  const outputSlides = normalizeToolSlides(
+    part.output?.slides ?? part.toolInvocation?.output?.slides
+  );
   if (outputSlides) {
     return outputSlides;
   }
 
-  return normalizeToolSlides(part.args?.slides ?? part.toolInvocation?.args?.slides ?? part.input?.slides ?? part.toolInvocation?.input?.slides);
+  return normalizeToolSlides(
+    part.args?.slides ??
+      part.toolInvocation?.args?.slides ??
+      part.input?.slides ??
+      part.toolInvocation?.input?.slides
+  );
 }
 
 export function extractLatestPptPlanState(messages: unknown[]): ExtractedPptPlanState {
@@ -107,7 +114,11 @@ export function extractLatestPptPlanState(messages: unknown[]): ExtractedPptPlan
 
       hasCompleted = true;
       completedSlides = slides;
-      completedToolCallId = part.toolCallId ?? part.toolInvocation?.toolCallId ?? part.toolInvocation?.toolCallID ?? null;
+      completedToolCallId =
+        part.toolCallId ??
+        part.toolInvocation?.toolCallId ??
+        part.toolInvocation?.toolCallID ??
+        null;
     }
   }
 
@@ -126,19 +137,19 @@ export function createPptPlan(slides: Slide[]): PPTPlan | undefined {
 
 export function getPptPlanSignature(slides: Slide[] | undefined) {
   return JSON.stringify(
-    (slides ?? []).map((slide) => ({
+    (slides ?? []).map(slide => ({
       type: slide.type,
       title: slide.title,
       description: slide.description,
       content: slide.content ?? '',
-    })),
+    }))
   );
 }
 
 export function shouldSyncCompletedPptPlan(
   status: string,
   extraction: ExtractedPptPlanState,
-  lastSyncedSignature: string,
+  lastSyncedSignature: string
 ) {
   if (status !== 'ready' || !extraction.hasCompleted) {
     return false;
@@ -147,6 +158,9 @@ export function shouldSyncCompletedPptPlan(
   return getPptPlanSignature(extraction.completedSlides) !== lastSyncedSignature;
 }
 
-export function shouldApplyIncomingPlanToModal(editingSlideIndex: number | null, isMutating: boolean) {
+export function shouldApplyIncomingPlanToModal(
+  editingSlideIndex: number | null,
+  isMutating: boolean
+) {
   return editingSlideIndex === null && !isMutating;
 }
