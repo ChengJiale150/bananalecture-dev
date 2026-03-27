@@ -6,7 +6,6 @@ build-backend = "hatchling.build"
 name = "bananalecture_backend"
 dynamic = ["version"]
 description = "Banana Lecture Backend API"
-readme = "README.md"
 requires-python = ">=3.12"
 license = {text = "MIT"}
 dependencies = [
@@ -24,9 +23,6 @@ dependencies = [
     "pydantic-ai-slim[openai]>=1.71.0",
     "ffmpeg-python>=0.2.0",
 ]
-
-[project.scripts]
-bananalecture_backend = "bananalecture_backend.main:main"
 
 [dependency-groups]
 dev = [

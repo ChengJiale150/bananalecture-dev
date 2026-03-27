@@ -29,9 +29,9 @@ IMAGE_GENERATION:
   API_URL: https://api.chatfire.site/v1/images/generations
   API_KEY: null
   MODEL_LIST:
-    - nano-banana-2
-    - nano-banana-pro
-  REQUEST_TIMEOUT_SECONDS: 60.0
+  - nano-banana-2
+  - nano-banana-pro
+  REQUEST_TIMEOUT_SECONDS: 120.0
   GENERATION_SIZE: "16:9"
   DOWNLOAD_RETRIES: 3
   DOWNLOAD_RETRY_DELAY_SECONDS: 0.5

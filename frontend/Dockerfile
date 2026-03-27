@@ -4,9 +4,9 @@ FROM oven/bun:1-alpine AS builder
 WORKDIR /app
 
 COPY package.json ./
-COPY bun.lockb* ./
+COPY bun.lock* ./
 
-RUN bun install --frozen-lockfile
+RUN bun install
 
 COPY . .
 
@@ -22,7 +22,7 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 RUN mkdir .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
