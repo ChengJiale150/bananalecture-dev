@@ -1,9 +1,6 @@
 services:
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: bananalecture_backend
+    image: chengjiale150/bananalecture-backend:latest
     ports:
       - "8000:8000"
     env_file:
@@ -17,10 +14,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: bananalecture_frontend
+    image: chengjiale150/bananalecture-frontend:latest
     ports:
       - "3000:3000"
     env_file:
