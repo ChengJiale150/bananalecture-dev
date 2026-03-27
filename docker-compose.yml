@@ -1,5 +1,8 @@
 services:
   backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     image: chengjiale150/bananalecture-backend:latest
     ports:
       - "8000:8000"
@@ -14,6 +17,9 @@ services:
     restart: unless-stopped
 
   frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     image: chengjiale150/bananalecture-frontend:latest
     ports:
       - "3000:3000"
