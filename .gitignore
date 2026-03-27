@@ -4,3 +4,10 @@
 .trae/
 *.swp
 *.swo
+
+# Environment variables
+.env.frontend
+.env.backend
+
+# Data
+data/
