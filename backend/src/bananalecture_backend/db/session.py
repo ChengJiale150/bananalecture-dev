@@ -14,7 +14,11 @@ class DatabaseManager:
     """Owns the async SQLAlchemy engine and session factory."""
 
     def __init__(self, settings: Settings) -> None:
-        self.engine: AsyncEngine = create_async_engine(settings.DATABASE.URL, future=True)
+        self.engine: AsyncEngine = create_async_engine(
+            settings.DATABASE.URL,
+            future=True,
+            pool_pre_ping=True,
+        )
         self.session_factory = async_sessionmaker(self.engine, expire_on_commit=False)
         if settings.DATABASE.URL.startswith("sqlite"):
             event.listen(self.engine.sync_engine, "connect", _set_sqlite_pragma)
@@ -38,5 +42,8 @@ def _set_sqlite_pragma(dbapi_connection: object, _: object) -> None:
     connection = cast("Any", dbapi_connection)
     cursor = connection.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
-    cursor.execute("PRAGMA busy_timeout=5000")
+    cursor.execute("PRAGMA busy_timeout=30000")
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.execute("PRAGMA read_uncommitted=1")
     cursor.close()
