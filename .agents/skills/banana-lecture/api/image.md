@@ -70,8 +70,8 @@ GET /api/v1/projects/{project_id}/slides/{slide_id}/image/file
 **响应**
 
 ```
-Content-Type: image/png
-Content-Disposition: attachment; filename="slide-002.png"
+Content-Type: image/webp
+Content-Disposition: attachment; filename="slide-002.webp"
 
 [binary image data]
 ```
