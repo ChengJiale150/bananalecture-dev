@@ -1,4 +1,5 @@
 import './globals.css';
+import { BasePathProvider } from '@/contexts/base-path-context';
 
 export const metadata = {
   title: 'BananaLecture Frontend',
@@ -8,7 +9,9 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh-CN">
-      <body>{children}</body>
+      <body>
+        <BasePathProvider>{children}</BasePathProvider>
+      </body>
     </html>
   );
 }

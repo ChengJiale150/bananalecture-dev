@@ -1,5 +1,5 @@
 export const getBasePath = () => {
-  return process.env.NEXT_PUBLIC_RUNTIME_BASE_PATH || '';
+  return process.env.RUNTIME_BASE_PATH || '';
 };
 
 export const withBasePath = (path: string): string => {
@@ -19,3 +19,6 @@ export const stripBasePath = (path: string): string => {
   }
   return path;
 };
+
+export { useBasePath } from '@/contexts/base-path-context';
+export { BasePathProvider } from '@/contexts/base-path-context';

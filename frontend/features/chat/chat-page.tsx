@@ -5,9 +5,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Loader2, BrainCircuit } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useRouter } from 'next/navigation';
+
 import Link from 'next/link';
-import { withBasePath } from '@/lib/path';
+import { useBasePath } from '@/contexts/base-path-context';
 import ChatInput from '@/features/chat/components/chat-input';
 import PPTPlanPreview from '@/features/chat/components/ppt-plan-preview';
 import Sidebar from '@/features/chat/components/sidebar';
@@ -71,7 +71,8 @@ function ChatInterface({
   project: ProjectRecord;
   onProjectUpdate: (project: Partial<ProjectRecord> & { id: string }) => void;
 }) {
-  const router = useRouter();
+
+  const { basePath } = useBasePath();
   const chatId = project.id;
   const { status, sendMessage, messages, stop, setMessages } = useChat<PlannerAgentUIMessage>({
     id: chatId,
@@ -331,7 +332,7 @@ function ChatInterface({
               <div className="border-b border-gray-200 bg-white">
                 <div className="w-full max-w-3xl mx-auto px-4 py-3 flex justify-end">
                   <Link
-                    href={withBasePath(`/preview?id=${chatId}&page=1&refresh=${Date.now()}`)}
+                    href={`${basePath}/preview?id=${chatId}&page=1&refresh=${Date.now()}`}
                     className="px-4 py-2 bg-green-500 text-white font-bold rounded-xl border-2 border-gray-900 hover:brightness-110 active:scale-95 transition-all shadow-[3px_3px_0px_rgba(0,0,0,1)]"
                   >
                     查看 PPT 预览

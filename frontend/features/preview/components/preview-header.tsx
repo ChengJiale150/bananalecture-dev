@@ -12,8 +12,9 @@ import {
   Video,
   Volume2,
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useState } from 'react';
+import { useBasePath } from '@/contexts/base-path-context';
 import type { GenerationSessionState, GenerationStage } from '@/features/projects/types';
 
 interface PreviewHeaderProps {
@@ -48,7 +49,7 @@ export function PreviewHeader({
   handleDownloadVideo,
   handleForceRefresh,
 }: PreviewHeaderProps) {
-  const router = useRouter();
+  const { basePath } = useBasePath();
   const [showAdvancedTools, setShowAdvancedTools] = useState(false);
   const progressValue = generationSession ? Math.round(overallGenerationProgress) : 0;
   const progressTone =
@@ -64,13 +65,13 @@ export function PreviewHeader({
     <header className="bg-white border-b-4 border-gray-900 shadow-sm flex-none z-10 relative">
       <div className="px-6 py-3 flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => router.back()}
+          <Link
+            href={basePath || '/'}
             className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-xl border-2 border-gray-900 hover:bg-gray-200 transition-all shadow-[2px_2px_0px_rgba(0,0,0,1)]"
             title="返回规划空间"
           >
             <ArrowLeft size={18} />
-          </button>
+          </Link>
           <button
             onClick={handleGenerateAll}
             disabled={isGeneratingAll}
