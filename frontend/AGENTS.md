@@ -24,6 +24,7 @@
 - **API Boundary**: 所有 BananaLecture 后端请求统一通过 `shared/api/banana` 发起。不要在 feature 或 route 中手写 REST URL。
 - **Server Boundary**: `server/planner` 只能被服务端代码引用；client component 不得直接导入。
 - **Proxy Contract**: 前端继续通过 `/api/v1/[...path]` 代理到后端，外部 API 路径与 DTO 结构必须与后端保持一致。
+  - **图片格式**: 图片文件接口 (`GET /api/v1/projects/{project_id}/slides/{slide_id}/image/file`) 返回 WebP 格式，浏览器原生支持，无需额外处理。
 
 ## Code Style
 
@@ -63,7 +64,3 @@
 
 - 不要把后端返回 DTO 直接散播到 UI；先在 `features/projects` 做映射。
 - 不要在组件中硬编码后端基础 URL、任务轮询协议或资源路径。
-
-### Commit
-
-Before committing your changes, please ensure that your code passes all quality checks and adheres to the commit message format. For detailed instructions, please refer to [commit.md](docs/commit.md).

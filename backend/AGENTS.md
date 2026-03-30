@@ -67,6 +67,3 @@ We use `just` as our command runner to provide a consistent development interfac
 3. **Modify**: Implement the changes or new features following the current layering: resource changes in `services/resources/`, workflow changes in `application/use_cases/`, external integrations behind `application/ports/`.
 4. **Verify**: Run `uv run pytest <test_file>` again to ensure the implementation passes the new tests and doesn't break existing ones.
 5. **Check**: Run `just check` to ensure overall code quality (format, lint, type-check, test) and catch any regressions.
-
-### Commit
-Before committing your changes, please ensure that your code passes all quality checks and adheres to the commit message format. For detailed instructions, please refer to [commit.md](docs/commit.md).
