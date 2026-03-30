@@ -16,6 +16,7 @@ import {
   cancelTask,
   deleteDialogue,
   downloadVideoFile,
+  fetchSlideImageBlob,
   generateDialogues,
   generateSlideAudio,
   generateSlideImage,
@@ -23,13 +24,17 @@ import {
   getDialogueAudioUrl,
   getProject,
   getSlideAudioUrl,
-  getSlideImageUrl,
   getTask,
   listDialogues,
   modifySlideImage,
   reorderDialogues,
   updateDialogue,
 } from '@/features/projects/api';
+import {
+  cacheImage,
+  clearImageCache,
+  getCachedImage,
+} from '@/features/preview/utils/image-cache';
 import { getPageParamFromSlideIndex, getSlideIndexFromPageParam } from '@/features/projects/utils';
 import {
   advanceGenerationSession,
@@ -147,7 +152,7 @@ export function usePreviewState(
 
       if (force) {
         clearProjectPreviewCache(projectId);
-        setSlideImageTimestamp(Date.now());
+        clearImageCache(projectId);
         setSlideAudioTimestamp(Date.now());
       }
 
@@ -460,8 +465,42 @@ export function usePreviewState(
   }, [activeSessionStatus, activeTaskId, commitGenerationSession, refreshProject, startStageTask]);
 
   const currentSlide = plan?.slides[currentSlideIndex];
-  const [slideImageTimestamp, setSlideImageTimestamp] = useState(Date.now());
+  const [slideImageCacheUrl, setSlideImageCacheUrl] = useState<string | null>(null);
   const [slideAudioTimestamp, setSlideAudioTimestamp] = useState(Date.now());
+
+  useEffect(() => {
+    if (!projectId || !currentSlide?.id || !currentSlide.imagePath) {
+      setSlideImageCacheUrl(null);
+      return;
+    }
+
+    let cancelled = false;
+    const loadImage = async () => {
+      const cached = getCachedImage(projectId, currentSlide.id);
+      if (cached) {
+        if (!cancelled) {
+          setSlideImageCacheUrl(cached.objectUrl);
+        }
+        return;
+      }
+
+      try {
+        const blob = await fetchSlideImageBlob(projectId, currentSlide.id);
+        if (cancelled) return;
+        const objectUrl = cacheImage(projectId, currentSlide.id, blob);
+        if (!cancelled) {
+          setSlideImageCacheUrl(objectUrl);
+        }
+      } catch (error) {
+        console.error('Failed to fetch slide image:', error);
+      }
+    };
+
+    void loadImage();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentSlide?.id, currentSlide?.imagePath, projectId]);
 
   useEffect(() => {
     if (!currentSlide?.id || Array.isArray(currentSlide.dialogues)) return;
@@ -490,13 +529,7 @@ export function usePreviewState(
   }, [currentSlide?.dialogues, currentSlide?.id, projectId, replaceSlideDialoguesInState]);
 
   const displayDialogues = useMemo(() => currentSlide?.dialogues ?? [], [currentSlide]);
-  const slideImageUrl = useMemo(
-    () =>
-      projectId && currentSlide?.id && currentSlide.imagePath
-        ? `${getSlideImageUrl(projectId, currentSlide.id)}?t=${slideImageTimestamp}`
-        : null,
-    [currentSlide?.id, currentSlide?.imagePath, projectId, slideImageTimestamp]
-  );
+  const slideImageUrl = slideImageCacheUrl;
   const slideAudioUrl = useMemo(
     () =>
       projectId && currentSlide?.id && currentSlide.audioPath

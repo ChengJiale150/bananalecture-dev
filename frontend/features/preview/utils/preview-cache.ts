@@ -1,4 +1,5 @@
 import type { Dialogue, ProjectRecord } from '@/features/projects/types';
+import { clearImageCache } from './image-cache';
 
 const PROJECT_CACHE_PREFIX = 'preview:project:';
 const DIALOGUES_CACHE_PREFIX = 'preview:dialogues:';
@@ -134,6 +135,7 @@ export function clearCachedDialogues(projectId: string, slideId: string) {
 
 export function clearProjectPreviewCache(projectId: string) {
   clearCachedProject(projectId);
+  clearImageCache(projectId);
 
   for (const cacheKey of dialogueMemoryCache.keys()) {
     if (cacheKey.startsWith(`${projectId}:`)) {

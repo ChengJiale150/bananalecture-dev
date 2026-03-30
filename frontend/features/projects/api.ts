@@ -289,6 +289,11 @@ export async function generateSlideImage(projectId: string, slideId: string) {
   await apiClient.generateSlideImage(projectId, slideId);
 }
 
+export async function fetchSlideImageBlob(projectId: string, slideId: string): Promise<Blob> {
+  const apiClient = getApiClient();
+  return apiClient.getSlideImageFileBlob(projectId, slideId);
+}
+
 export async function modifySlideImage(projectId: string, slideId: string, prompt: string) {
   const apiClient = getApiClient();
   await apiClient.modifySlideImage(projectId, slideId, { prompt });
