@@ -1,9 +1,6 @@
 # 构建阶段
 FROM oven/bun:1-alpine AS builder
 
-ARG NEXT_PUBLIC_BASE_PATH=/banana
-ENV NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
-
 WORKDIR /app
 
 COPY package.json ./

@@ -16,10 +16,6 @@ on:
         - both
         - backend
         - frontend
-      base_path:
-        description: 'Base path for frontend (e.g., /banana, leave empty for root)'
-        required: false
-        default: '/banana'
 
 jobs:
   build-backend:
@@ -101,5 +97,3 @@ jobs:
           chengjiale150/bananalecture-frontend:latest
         cache-from: type=gha
         cache-to: type=gha,mode=max
-        build-args: |
-          NEXT_PUBLIC_BASE_PATH=${{ github.event.inputs.base_path }}
