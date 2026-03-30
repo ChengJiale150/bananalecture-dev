@@ -28,6 +28,7 @@ from bananalecture_backend.application.use_cases import (
     GenerateSlideAudioUseCase,
     GenerateSlideDialoguesUseCase,
     GenerateSlideImageUseCase,
+    GetSlideImageFileUseCase,
     ModifySlideImageUseCase,
     QueueBatchAudioGenerationUseCase,
     QueueBatchDialogueGenerationUseCase,
@@ -201,6 +202,14 @@ def get_modify_slide_image_use_case(
     return ModifySlideImageUseCase(session, image_generator, asset_store)
 
 
+def get_slide_image_file_use_case(
+    service: SlideResourceServiceDep,
+    asset_store: AssetStoreDep,
+    settings: SettingsDep,
+) -> GetSlideImageFileUseCase:
+    return GetSlideImageFileUseCase(service, asset_store, settings)
+
+
 def get_generate_slide_dialogues_use_case(
     session: DBSessionDep,
     dialogue_generator: DialogueGeneratorDep,
@@ -315,6 +324,7 @@ def get_cancel_task_use_case(session: DBSessionDep, runtime: RuntimeDep) -> Canc
 
 GenerateSlideImageUseCaseDep = Annotated[GenerateSlideImageUseCase, Depends(get_generate_slide_image_use_case)]
 ModifySlideImageUseCaseDep = Annotated[ModifySlideImageUseCase, Depends(get_modify_slide_image_use_case)]
+GetSlideImageFileUseCaseDep = Annotated[GetSlideImageFileUseCase, Depends(get_slide_image_file_use_case)]
 GenerateSlideDialoguesUseCaseDep = Annotated[
     GenerateSlideDialoguesUseCase,
     Depends(get_generate_slide_dialogues_use_case),

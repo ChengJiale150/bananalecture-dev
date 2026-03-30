@@ -12,6 +12,7 @@ from bananalecture_backend.core.config.base import DEFAULT_CONFIG_FILE, DEFAULT_
 from bananalecture_backend.core.config.media import (
     AudioGenerationSettings,
     DialogueGenerationSettings,
+    ImageDeliverySettings,
     ImageGenerationSettings,
     VideoGenerationSettings,
 )
@@ -76,6 +77,7 @@ class Settings(BaseSettings):
     PAGINATION: PaginationSettings = Field(default_factory=PaginationSettings)
     TASKS: TaskSettings = Field(default_factory=TaskSettings)
     IMAGE_GENERATION: ImageGenerationSettings = Field(default_factory=ImageGenerationSettings)
+    IMAGE_DELIVERY: ImageDeliverySettings = Field(default_factory=ImageDeliverySettings)
     DIALOGUE_GENERATION: DialogueGenerationSettings = Field(default_factory=DialogueGenerationSettings)
     AUDIO_GENERATION: AudioGenerationSettings = Field(default_factory=AudioGenerationSettings)
     VIDEO_GENERATION: VideoGenerationSettings = Field(default_factory=VideoGenerationSettings)

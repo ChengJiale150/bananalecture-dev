@@ -1,18 +1,21 @@
 from __future__ import annotations
 
 import asyncio
+from io import BytesIO
 import time
 from pathlib import Path
 
 import pytest
+from PIL import Image
 
 from bananalecture_backend.application.use_cases import (
     GenerateProjectVideoUseCase,
     GenerateSlideAudioUseCase,
+    GetSlideImageFileUseCase,
     QueueProjectVideoGenerationUseCase,
 )
 from bananalecture_backend.application.strategies import DefaultAudioCueStrategy, DefaultDialoguePromptStrategy
-from bananalecture_backend.core.config import ROOT_DIR, Settings
+from bananalecture_backend.core.config import ImageDeliverySettings, ROOT_DIR, Settings
 from bananalecture_backend.core.errors import BadRequestError, ExternalServiceError, NotFoundError
 from bananalecture_backend.db.repositories import DialogueRepository, ProjectRepository, SlideRepository, TaskRepository
 from bananalecture_backend.infrastructure.storage import StorageService
@@ -76,6 +79,12 @@ class FakeVideoProcessingService:
         output.write_bytes(b"".join(path.read_bytes() for path in inputs))
 
 
+def _png_bytes(width: int, height: int) -> bytes:
+    output = BytesIO()
+    Image.new("RGB", (width, height), color="red").save(output, format="PNG")
+    return output.getvalue()
+
+
 async def _create_project_and_slide(db_session, slide_type: SlideType = SlideType.CONTENT) -> tuple[str, str]:
     project = await ProjectResourceService(db_session).create_project(
         CreateProjectRequest(name="Deck", user_id="admin")
@@ -117,6 +126,74 @@ async def bananalecture_add_dialogue(
         ),
     )
     return dialogue.id
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_get_slide_image_file_returns_webp_with_resized_dimensions(
+    db_session,
+    test_settings: Settings,
+) -> None:
+    project_id, slide_id = await _create_project_and_slide(db_session)
+    storage = StorageService(test_settings.STORAGE.DATA_DIR)
+    await storage.initialize()
+
+    image_path = await storage.write_bytes(StorageLayout.slide_image(project_id, slide_id), _png_bytes(3200, 1800))
+    await SlideResourceService(db_session).set_image_path(slide_id, image_path)
+    await db_session.commit()
+
+    settings = test_settings.model_copy(
+        update={
+            "IMAGE_DELIVERY": ImageDeliverySettings(
+                MAX_WIDTH=1600,
+                MAX_HEIGHT=900,
+                WEBP_QUALITY=75,
+                WEBP_METHOD=4,
+                LOSSLESS=False,
+            )
+        }
+    )
+
+    delivered = await GetSlideImageFileUseCase(
+        SlideResourceService(db_session),
+        storage,
+        settings,
+    ).execute(project_id, slide_id)
+
+    assert delivered.media_type == "image/webp"
+    assert delivered.filename == f"{slide_id}.webp"
+    with Image.open(BytesIO(delivered.content)) as image:
+        assert image.format == "WEBP"
+        assert image.size == (1600, 900)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_get_slide_image_file_does_not_upscale_small_images(
+    db_session,
+    test_settings: Settings,
+) -> None:
+    project_id, slide_id = await _create_project_and_slide(db_session)
+    storage = StorageService(test_settings.STORAGE.DATA_DIR)
+    await storage.initialize()
+
+    image_path = await storage.write_bytes(StorageLayout.slide_image(project_id, slide_id), _png_bytes(640, 360))
+    await SlideResourceService(db_session).set_image_path(slide_id, image_path)
+    await db_session.commit()
+
+    settings = test_settings.model_copy(
+        update={"IMAGE_DELIVERY": ImageDeliverySettings(MAX_WIDTH=1600, MAX_HEIGHT=900)}
+    )
+
+    delivered = await GetSlideImageFileUseCase(
+        SlideResourceService(db_session),
+        storage,
+        settings,
+    ).execute(project_id, slide_id)
+
+    with Image.open(BytesIO(delivered.content)) as image:
+        assert image.format == "WEBP"
+        assert image.size == (640, 360)
 
 
 @pytest.mark.unit

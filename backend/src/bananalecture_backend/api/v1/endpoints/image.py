@@ -1,12 +1,11 @@
 from fastapi import APIRouter, status
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 
 from bananalecture_backend.api.v1.deps import (
-    AssetStoreDep,
     GenerateSlideImageUseCaseDep,
+    GetSlideImageFileUseCaseDep,
     ModifySlideImageUseCaseDep,
     QueueBatchImageGenerationUseCaseDep,
-    SlideResourceServiceDep,
 )
 from bananalecture_backend.schemas.media import PromptRequest
 
@@ -54,9 +53,12 @@ async def batch_generate_images(
 async def get_image_file(
     project_id: str,
     slide_id: str,
-    service: SlideResourceServiceDep,
-    asset_store: AssetStoreDep,
-) -> FileResponse:
-    """Return the generated image file."""
-    path = asset_store.resolve_file(await service.get_image_path(project_id, slide_id))
-    return FileResponse(path=path, media_type="image/png", filename=f"{slide_id}.png")
+    use_case: GetSlideImageFileUseCaseDep,
+) -> Response:
+    """Return the generated image as compressed WebP."""
+    image = await use_case.execute(project_id, slide_id)
+    return Response(
+        content=image.content,
+        media_type=image.media_type,
+        headers={"Content-Disposition": f'attachment; filename="{image.filename}"'},
+    )

@@ -27,6 +27,12 @@ def test_settings_load_from_yaml_and_env_override(tmp_path: Path) -> None:
                 '  GENERATION_SIZE: "4:3"',
                 "  DOWNLOAD_RETRIES: 4",
                 "  DOWNLOAD_RETRY_DELAY_SECONDS: 0.25",
+                "IMAGE_DELIVERY:",
+                "  MAX_WIDTH: 1600",
+                "  MAX_HEIGHT: 900",
+                "  WEBP_QUALITY: 80",
+                "  WEBP_METHOD: 6",
+                "  LOSSLESS: false",
                 "AUDIO_GENERATION:",
                 "  PROVIDER:",
                 "    GROUP_ID: yaml-group",
@@ -68,6 +74,11 @@ def test_settings_load_from_yaml_and_env_override(tmp_path: Path) -> None:
                 "SERVER__PORT=9000",
                 "IMAGE_GENERATION__API_KEY=env-key",
                 'IMAGE_GENERATION__MODEL_LIST=["env-model-1", "env-model-2"]',
+                "IMAGE_DELIVERY__MAX_WIDTH=1440",
+                "IMAGE_DELIVERY__MAX_HEIGHT=810",
+                "IMAGE_DELIVERY__WEBP_QUALITY=72",
+                "IMAGE_DELIVERY__WEBP_METHOD=5",
+                "IMAGE_DELIVERY__LOSSLESS=true",
                 "DIALOGUE_GENERATION__PROVIDER__API_KEY=dialogue-env-key",
                 "AUDIO_GENERATION__PROVIDER__API_KEY=audio-env-key",
                 "AUDIO_GENERATION__DEFAULT_VOICE_GROUP=env-default",
@@ -98,6 +109,11 @@ def test_settings_load_from_yaml_and_env_override(tmp_path: Path) -> None:
     assert settings.IMAGE_GENERATION.GENERATION_SIZE == "4:3"
     assert settings.IMAGE_GENERATION.DOWNLOAD_RETRIES == 4
     assert settings.IMAGE_GENERATION.DOWNLOAD_RETRY_DELAY_SECONDS == 0.25
+    assert settings.IMAGE_DELIVERY.MAX_WIDTH == 1440
+    assert settings.IMAGE_DELIVERY.MAX_HEIGHT == 810
+    assert settings.IMAGE_DELIVERY.WEBP_QUALITY == 72
+    assert settings.IMAGE_DELIVERY.WEBP_METHOD == 5
+    assert settings.IMAGE_DELIVERY.LOSSLESS is True
     assert settings.DIALOGUE_GENERATION.MODEL_NAME == "gpt-5"
     assert settings.DIALOGUE_GENERATION.PROVIDER.API_KEY == "dialogue-env-key"
     assert settings.DIALOGUE_GENERATION.PROFILE == {}

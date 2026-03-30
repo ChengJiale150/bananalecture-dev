@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import shutil
 from base64 import b64encode
+from dataclasses import dataclass
 from io import BytesIO
 from typing import TYPE_CHECKING
 
@@ -40,6 +41,15 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from bananalecture_backend.core.config import Settings
+
+
+@dataclass(frozen=True, slots=True)
+class DeliveredImage:
+    """Encoded image payload for HTTP delivery."""
+
+    content: bytes
+    media_type: str
+    filename: str
 
 
 class GenerateSlideImageUseCase:
@@ -109,6 +119,45 @@ class ModifySlideImageUseCase:
     def _as_data_url(self, image_bytes: bytes) -> str:
         encoded = b64encode(image_bytes).decode("ascii")
         return f"data:image/png;base64,{encoded}"
+
+
+class GetSlideImageFileUseCase:
+    """Read a stored slide image and return a compressed WebP payload."""
+
+    def __init__(self, slide_resource: SlideResourceService, asset_store: AssetStore, settings: Settings) -> None:
+        self.slide_resource = slide_resource
+        self.asset_store = asset_store
+        self.settings = settings
+
+    async def execute(self, project_id: str, slide_id: str) -> DeliveredImage:
+        image_path = await self.slide_resource.get_image_path(project_id, slide_id)
+        original = await self.asset_store.read_bytes(image_path)
+        return DeliveredImage(
+            content=self._encode_webp(original),
+            media_type="image/webp",
+            filename=f"{slide_id}.webp",
+        )
+
+    def _encode_webp(self, image_bytes: bytes) -> bytes:
+        delivery = self.settings.IMAGE_DELIVERY
+        with Image.open(BytesIO(image_bytes)) as image:
+            image.load()
+            prepared = image.copy()
+
+        prepared.thumbnail((delivery.MAX_WIDTH, delivery.MAX_HEIGHT), Image.Resampling.LANCZOS)
+
+        output = BytesIO()
+        if delivery.LOSSLESS:
+            prepared.save(output, format="WEBP", lossless=True, method=delivery.WEBP_METHOD)
+        else:
+            prepared.save(
+                output,
+                format="WEBP",
+                lossless=False,
+                quality=delivery.WEBP_QUALITY,
+                method=delivery.WEBP_METHOD,
+            )
+        return output.getvalue()
 
 
 class GenerateSlideDialoguesUseCase:

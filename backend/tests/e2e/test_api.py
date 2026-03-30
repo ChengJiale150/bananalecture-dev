@@ -110,7 +110,7 @@ def test_full_bananalecture_workflow(client: TestClient, test_settings: Settings
         f"{test_settings.API.V1_STR}/projects/{project_id}/slides/{second_slide_id}/image/file"
     )
     assert image_file_response.status_code == status.HTTP_200_OK
-    assert image_file_response.headers["content-type"] == "image/png"
+    assert image_file_response.headers["content-type"] == "image/webp"
 
     audio_response = client.post(
         f"{test_settings.API.V1_STR}/projects/{project_id}/slides/{second_slide_id}/audio/generate"

@@ -21,6 +21,16 @@ class ImageGenerationSettings(BaseModel):
     DOWNLOAD_RETRY_DELAY_SECONDS: float = Field(default=0.5, ge=0.0)
 
 
+class ImageDeliverySettings(BaseModel):
+    """Settings for delivering slide images to clients."""
+
+    MAX_WIDTH: int = Field(default=1600, gt=0)
+    MAX_HEIGHT: int = Field(default=900, gt=0)
+    WEBP_QUALITY: int = Field(default=80, ge=0, le=100)
+    WEBP_METHOD: int = Field(default=6, ge=0, le=6)
+    LOSSLESS: bool = False
+
+
 class DialogueGenerationProviderSettings(BaseModel):
     """Provider settings for dialogue generation."""
 

@@ -16,6 +16,7 @@ from bananalecture_backend.core.config.media import (
     AudioProviderSettings,
     DialogueGenerationProviderSettings,
     DialogueGenerationSettings,
+    ImageDeliverySettings,
     ImageGenerationSettings,
     VideoGenerationSettings,
 )
@@ -31,6 +32,7 @@ __all__ = [
     "DatabaseSettings",
     "DialogueGenerationProviderSettings",
     "DialogueGenerationSettings",
+    "ImageDeliverySettings",
     "ImageGenerationSettings",
     "PaginationSettings",
     "ServerSettings",

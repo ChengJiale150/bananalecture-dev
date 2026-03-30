@@ -1,8 +1,10 @@
 from base64 import b64encode
+from io import BytesIO
 from pathlib import Path
 
 from fastapi import status
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from bananalecture_backend.core.config import Settings
 from bananalecture_backend.infrastructure.storage_layout import StorageLayout
@@ -54,7 +56,11 @@ def test_generate_image_uses_slide_content(
 
     file_response = client.get(f"{test_settings.API.V1_STR}/projects/{project_id}/slides/{slide_id}/image/file")
     assert file_response.status_code == status.HTTP_200_OK
-    assert file_response.headers["content-type"] == "image/png"
+    assert file_response.headers["content-type"] == "image/webp"
+    assert 'filename="' in file_response.headers["content-disposition"]
+    assert file_response.headers["content-disposition"].endswith(f'{slide_id}.webp"')
+    with Image.open(BytesIO(file_response.content)) as image:
+        assert image.format == "WEBP"
     assert Path(test_settings.STORAGE.DATA_DIR, *StorageLayout.slide_image(project_id, slide_id).split("/")).exists()
 
 
@@ -79,7 +85,11 @@ def test_modify_image_uses_existing_image_as_data_url(
 
     file_response = client.get(f"{test_settings.API.V1_STR}/projects/{project_id}/slides/{slide_id}/image/file")
     assert file_response.status_code == status.HTTP_200_OK
-    expected_reference = f"data:image/png;base64,{b64encode(file_response.content).decode('ascii')}"
+    original_image_path = Path(
+        test_settings.STORAGE.DATA_DIR,
+        *StorageLayout.slide_image(project_id, slide_id).split("/"),
+    )
+    expected_reference = f"data:image/png;base64,{b64encode(original_image_path.read_bytes()).decode('ascii')}"
     assert fake_image_client.calls == [{"prompt": "Add a bright sun", "reference_image": expected_reference}]
 
 

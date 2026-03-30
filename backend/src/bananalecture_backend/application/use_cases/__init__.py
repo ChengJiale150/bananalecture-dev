@@ -3,6 +3,7 @@ from bananalecture_backend.application.use_cases.media import (
     GenerateSlideAudioUseCase,
     GenerateSlideDialoguesUseCase,
     GenerateSlideImageUseCase,
+    GetSlideImageFileUseCase,
     ModifySlideImageUseCase,
 )
 from bananalecture_backend.application.use_cases.tasks import (
@@ -19,6 +20,7 @@ __all__ = [
     "GenerateSlideAudioUseCase",
     "GenerateSlideDialoguesUseCase",
     "GenerateSlideImageUseCase",
+    "GetSlideImageFileUseCase",
     "ModifySlideImageUseCase",
     "QueueBatchAudioGenerationUseCase",
     "QueueBatchDialogueGenerationUseCase",

@@ -77,7 +77,7 @@ test('getPptPlanSignature ignores backend ids and media fields when comparing pl
       title: '封面',
       description: '介绍',
       content: '内容',
-      imagePath: 'a.png',
+      imagePath: 'a.webp',
       audioPath: 'a.mp3',
     },
   ]);
@@ -88,7 +88,7 @@ test('getPptPlanSignature ignores backend ids and media fields when comparing pl
       title: '封面',
       description: '介绍',
       content: '内容',
-      imagePath: 'b.png',
+      imagePath: 'b.webp',
       audioPath: 'b.mp3',
     },
   ]);
