@@ -21,7 +21,6 @@ import {
   generateSlideAudio,
   generateSlideImage,
   generateVideo,
-  getDialogueAudioUrl,
   getProject,
   getSlideAudioUrl,
   getTask,
@@ -30,11 +29,7 @@ import {
   reorderDialogues,
   updateDialogue,
 } from '@/features/projects/api';
-import {
-  cacheImage,
-  clearImageCache,
-  getCachedImage,
-} from '@/features/preview/utils/image-cache';
+import { cacheImage, getCachedImage } from '@/features/preview/utils/image-cache';
 import { getPageParamFromSlideIndex, getSlideIndexFromPageParam } from '@/features/projects/utils';
 import {
   advanceGenerationSession,
@@ -52,12 +47,16 @@ import {
   persistGenerationSession,
 } from '@/features/preview/utils/generation-session';
 import {
+  buildPreviewQueryString,
   clearProjectPreviewCache,
+  consumePreviewRefresh,
+  getCurrentSlideImageUrl,
   normalizeDialogues,
   readCachedDialogues,
   readCachedProject,
   removeDialogueById,
   reorderDialoguesLocally,
+  type SlideImageState,
   upsertDialogue,
   updateCachedProject,
   writeCachedDialogues,
@@ -88,7 +87,7 @@ function createErroredSession(
 export function usePreviewState(
   projectIdFromUrl: string | null,
   pageFromUrl: string | null,
-  refreshToken: string | null
+  legacyRefreshToken: string | null
 ) {
   const router = useRouter();
   const pathname = usePathname();
@@ -101,7 +100,10 @@ export function usePreviewState(
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
   const [generationSession, setGenerationSession] = useState<GenerationSessionState | null>(null);
+  const [slideImageState, setSlideImageState] = useState<SlideImageState | null>(null);
+  const [slideImageReloadToken, setSlideImageReloadToken] = useState(0);
   const generationSessionRef = useRef<GenerationSessionState | null>(null);
+  const initialRefreshProjectRef = useRef<string | null>(null);
 
   useEffect(() => {
     generationSessionRef.current = generationSession;
@@ -110,9 +112,11 @@ export function usePreviewState(
   const setCurrentSlideIndex = useCallback(
     (nextIndex: number) => {
       const nextPage = getPageParamFromSlideIndex(nextIndex);
-      const params = new URLSearchParams(searchParams.toString());
-      params.set('page', String(nextPage));
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      const nextQuery = buildPreviewQueryString(searchParams, {
+        page: nextPage,
+        removeRefresh: true,
+      });
+      router.replace(`${pathname}?${nextQuery}`, { scroll: false });
     },
     [pathname, router, searchParams]
   );
@@ -152,7 +156,8 @@ export function usePreviewState(
 
       if (force) {
         clearProjectPreviewCache(projectId);
-        clearImageCache(projectId);
+        setSlideImageState(null);
+        setSlideImageReloadToken(current => current + 1);
         setSlideAudioTimestamp(Date.now());
       }
 
@@ -282,20 +287,39 @@ export function usePreviewState(
   );
 
   useEffect(() => {
+    if (!legacyRefreshToken) {
+      return;
+    }
+
+    const nextQuery = buildPreviewQueryString(searchParams, { removeRefresh: true });
+    router.replace(`${pathname}?${nextQuery}`, { scroll: false });
+  }, [legacyRefreshToken, pathname, router, searchParams]);
+
+  useEffect(() => {
     const loadPlan = async () => {
       try {
         if (!projectIdFromUrl) {
           setProjectId('');
           setPlan(null);
           setProjectVideoPath(undefined);
+          setSlideImageState(null);
           commitGenerationSession(null);
+          initialRefreshProjectRef.current = null;
           return;
         }
 
         setProjectId(projectIdFromUrl);
-        const shouldForceRefresh = Boolean(refreshToken);
+        const shouldConsumeInitialRefresh = initialRefreshProjectRef.current !== projectIdFromUrl;
+        const shouldForceRefresh =
+          (shouldConsumeInitialRefresh && Boolean(legacyRefreshToken)) ||
+          (shouldConsumeInitialRefresh && consumePreviewRefresh(projectIdFromUrl));
         if (shouldForceRefresh) {
           clearProjectPreviewCache(projectIdFromUrl);
+          setSlideImageState(null);
+          setSlideImageReloadToken(current => current + 1);
+        }
+        if (shouldConsumeInitialRefresh) {
+          initialRefreshProjectRef.current = projectIdFromUrl;
         }
 
         const cachedProject = !shouldForceRefresh ? readCachedProject(projectIdFromUrl) : null;
@@ -315,7 +339,7 @@ export function usePreviewState(
     };
 
     void loadPlan();
-  }, [applyProjectToState, commitGenerationSession, pageFromUrl, projectIdFromUrl, refreshToken]);
+  }, [applyProjectToState, commitGenerationSession, legacyRefreshToken, pageFromUrl, projectIdFromUrl]);
 
   useEffect(() => {
     if (!plan) return;
@@ -333,9 +357,11 @@ export function usePreviewState(
       return;
     }
 
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('page', String(nextPage));
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    const nextQuery = buildPreviewQueryString(searchParams, {
+      page: nextPage,
+      removeRefresh: true,
+    });
+    router.replace(`${pathname}?${nextQuery}`, { scroll: false });
   }, [pageFromUrl, pathname, plan, router, searchParams]);
 
   useEffect(() => {
@@ -465,34 +491,37 @@ export function usePreviewState(
   }, [activeSessionStatus, activeTaskId, commitGenerationSession, refreshProject, startStageTask]);
 
   const currentSlide = plan?.slides[currentSlideIndex];
-  const [slideImageCacheUrl, setSlideImageCacheUrl] = useState<string | null>(null);
   const [slideAudioTimestamp, setSlideAudioTimestamp] = useState(Date.now());
 
   useEffect(() => {
     if (!projectId || !currentSlide?.id || !currentSlide.imagePath) {
-      setSlideImageCacheUrl(null);
+      setSlideImageState(null);
       return;
     }
 
     let cancelled = false;
+    const targetSlideId = currentSlide.id;
     const loadImage = async () => {
-      const cached = getCachedImage(projectId, currentSlide.id);
+      const cached = getCachedImage(projectId, targetSlideId);
       if (cached) {
         if (!cancelled) {
-          setSlideImageCacheUrl(cached.objectUrl);
+          setSlideImageState({ slideId: targetSlideId, url: cached.objectUrl });
         }
         return;
       }
 
       try {
-        const blob = await fetchSlideImageBlob(projectId, currentSlide.id);
+        const blob = await fetchSlideImageBlob(projectId, targetSlideId);
         if (cancelled) return;
-        const objectUrl = cacheImage(projectId, currentSlide.id, blob);
+        const objectUrl = cacheImage(projectId, targetSlideId, blob);
         if (!cancelled) {
-          setSlideImageCacheUrl(objectUrl);
+          setSlideImageState({ slideId: targetSlideId, url: objectUrl });
         }
       } catch (error) {
         console.error('Failed to fetch slide image:', error);
+        if (!cancelled) {
+          setSlideImageState(current => (current?.slideId === targetSlideId ? null : current));
+        }
       }
     };
 
@@ -500,7 +529,7 @@ export function usePreviewState(
     return () => {
       cancelled = true;
     };
-  }, [currentSlide?.id, currentSlide?.imagePath, projectId]);
+  }, [currentSlide?.id, currentSlide?.imagePath, projectId, slideImageReloadToken]);
 
   useEffect(() => {
     if (!currentSlide?.id || Array.isArray(currentSlide.dialogues)) return;
@@ -529,7 +558,7 @@ export function usePreviewState(
   }, [currentSlide?.dialogues, currentSlide?.id, projectId, replaceSlideDialoguesInState]);
 
   const displayDialogues = useMemo(() => currentSlide?.dialogues ?? [], [currentSlide]);
-  const slideImageUrl = slideImageCacheUrl;
+  const slideImageUrl = getCurrentSlideImageUrl(slideImageState, currentSlide?.id);
   const slideAudioUrl = useMemo(
     () =>
       projectId && currentSlide?.id && currentSlide.audioPath

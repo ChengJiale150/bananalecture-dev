@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { Dialogue } from '@/features/projects/types';
 import {
+  buildPreviewQueryString,
+  getCurrentSlideImageUrl,
   removeDialogueById,
   reorderDialoguesLocally,
   upsertDialogue,
@@ -44,4 +46,22 @@ test('removeDialogueById removes only the specified dialogue', () => {
     result.map(dialogue => dialogue.id),
     ['dialogue-1', 'dialogue-3']
   );
+});
+
+test('buildPreviewQueryString removes legacy refresh and preserves other params', () => {
+  const params = new URLSearchParams('id=project-1&page=3&refresh=123&foo=bar');
+  assert.equal(
+    buildPreviewQueryString(params, { removeRefresh: true }),
+    'id=project-1&page=3&foo=bar'
+  );
+  assert.equal(
+    buildPreviewQueryString(params, { page: 2, removeRefresh: true }),
+    'id=project-1&page=2&foo=bar'
+  );
+});
+
+test('getCurrentSlideImageUrl only exposes the current slide image url', () => {
+  assert.equal(getCurrentSlideImageUrl({ slideId: 'slide-1', url: 'blob:a' }, 'slide-1'), 'blob:a');
+  assert.equal(getCurrentSlideImageUrl({ slideId: 'slide-1', url: 'blob:a' }, 'slide-2'), null);
+  assert.equal(getCurrentSlideImageUrl(null, 'slide-1'), null);
 });

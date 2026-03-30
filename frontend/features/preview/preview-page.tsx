@@ -14,7 +14,7 @@ function PreviewContent() {
   const searchParams = useSearchParams();
   const projectIdFromUrl = searchParams.get('id');
   const pageFromUrl = searchParams.get('page');
-  const refreshTokenFromUrl = searchParams.get('refresh');
+  const legacyRefreshTokenFromUrl = searchParams.get('refresh');
 
   const {
     plan,
@@ -48,7 +48,7 @@ function PreviewContent() {
     handleGenerateAudio,
     handleDownloadVideo,
     projectVideoPath,
-  } = usePreviewState(projectIdFromUrl, pageFromUrl, refreshTokenFromUrl);
+  } = usePreviewState(projectIdFromUrl, pageFromUrl, legacyRefreshTokenFromUrl);
 
   if (isLoading) {
     return (

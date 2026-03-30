@@ -1,11 +1,45 @@
 import type { Dialogue } from '@/features/projects/types';
 
 export * from './preview-cache';
+export * from './refresh-signal';
+
+export interface SlideImageState {
+  slideId: string;
+  url: string;
+}
 
 export function createClientId() {
   return typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+export function buildPreviewQueryString(
+  source: URLSearchParams,
+  options?: { page?: number; removeRefresh?: boolean }
+) {
+  const params = new URLSearchParams(source.toString());
+
+  if (options?.removeRefresh) {
+    params.delete('refresh');
+  }
+
+  if (options?.page !== undefined) {
+    params.set('page', String(options.page));
+  }
+
+  return params.toString();
+}
+
+export function getCurrentSlideImageUrl(
+  imageState: SlideImageState | null,
+  currentSlideId: string | undefined
+) {
+  if (!imageState || !currentSlideId || imageState.slideId !== currentSlideId) {
+    return null;
+  }
+
+  return imageState.url;
 }
 
 export function getEmotionDisplay(emotion?: string) {
