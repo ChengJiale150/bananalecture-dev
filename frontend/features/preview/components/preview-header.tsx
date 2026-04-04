@@ -31,10 +31,10 @@ interface PreviewHeaderProps {
 }
 
 const ADVANCED_ACTIONS: Array<{ stage: GenerationStage; label: string; icon: typeof ImageIcon }> = [
-  { stage: 'images', label: '一键生成图片', icon: ImageIcon },
-  { stage: 'dialogues', label: '一键生成口播稿', icon: FileText },
-  { stage: 'audio', label: '一键生成音频', icon: Volume2 },
-  { stage: 'video', label: '一键生成视频', icon: Video },
+  { stage: 'images', label: '批量生成图片', icon: ImageIcon },
+  { stage: 'dialogues', label: '批量生成口播稿', icon: FileText },
+  { stage: 'audio', label: '批量生成音频', icon: Volume2 },
+  { stage: 'video', label: '批量生成视频', icon: Video },
 ];
 
 export function PreviewHeader({
