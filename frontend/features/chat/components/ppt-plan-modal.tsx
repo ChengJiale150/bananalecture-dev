@@ -14,7 +14,7 @@ import {
   ChevronUp,
   ChevronDown,
 } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { shouldApplyIncomingPlanToModal } from '@/features/chat/ppt-plan-state';
@@ -27,7 +27,9 @@ interface PPTPlanModalProps {
   onAddSlide: (slide: Slide) => Promise<Slide | null>;
   onDeleteSlide: (slideId: string) => Promise<boolean>;
   onReorderSlides: (slideIds: string[]) => Promise<boolean>;
+  onSaveAndPreview?: () => void | Promise<void>;
   onClose: () => void;
+  embedded?: boolean;
 }
 
 function createNewSlideDraft(): Slide {
@@ -46,7 +48,9 @@ export default function PPTPlanModal({
   onAddSlide,
   onDeleteSlide,
   onReorderSlides,
+  onSaveAndPreview,
   onClose,
+  embedded = false,
 }: PPTPlanModalProps) {
   const [slides, setSlides] = useState<Slide[]>(pptPlan.slides);
   const [editingSlideIndex, setEditingSlideIndex] = useState<number | null>(null);
@@ -63,6 +67,10 @@ export default function PPTPlanModal({
   }, [editingSlideIndex, isMutating, pptPlan.slides]);
 
   useEffect(() => {
+    if (embedded) {
+      return;
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
@@ -70,7 +78,7 @@ export default function PPTPlanModal({
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [embedded, onClose]);
 
   const getSlideIcon = (type: SlideType) => {
     switch (type) {
@@ -214,28 +222,44 @@ export default function PPTPlanModal({
     }
   };
 
+  const handleCompleteEdit = useCallback(async () => {
+    if (onSaveAndPreview) {
+      await onSaveAndPreview();
+      return;
+    }
+    onClose();
+  }, [onClose, onSaveAndPreview]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="relative w-full max-w-4xl max-h-[90vh] bg-[#F0F8FF] rounded-2xl border-4 border-gray-900 shadow-[8px_8px_0px_rgba(0,0,0,1)] overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between p-4 bg-white border-b-4 border-gray-900">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[var(--doraemon-yellow)] rounded-full border-2 border-gray-900 flex items-center justify-center">
-              <Sparkles size={24} className="text-gray-900" />
+    <div className={embedded ? 'h-full' : 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm'}>
+      <div
+        className={
+          embedded
+            ? 'relative h-full bg-[#F0F8FF] overflow-hidden flex flex-col'
+            : 'relative w-full max-w-4xl max-h-[90vh] bg-[#F0F8FF] rounded-2xl border-4 border-gray-900 shadow-[8px_8px_0px_rgba(0,0,0,1)] overflow-hidden flex flex-col'
+        }
+      >
+        {!embedded && (
+          <div className="flex items-center justify-between p-4 bg-white border-b-4 border-gray-900">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[var(--doraemon-yellow)] rounded-full border-2 border-gray-900 flex items-center justify-center">
+                <Sparkles size={24} className="text-gray-900" />
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-gray-900">PPT 规划编辑器</h2>
+                <p className="text-sm text-gray-500">
+                  {slides.length} 页，流式预览，完成后统一同步到后端
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-black text-gray-900">PPT 规划编辑器</h2>
-              <p className="text-sm text-gray-500">
-                {slides.length} 页，流式预览，完成后统一同步到后端
-              </p>
-            </div>
+            <button
+              onClick={onClose}
+              className="p-2 bg-[var(--doraemon-red)] text-white rounded-xl border-2 border-gray-900 hover:brightness-110 active:scale-95 transition-all shadow-[2px_2px_0px_rgba(0,0,0,1)]"
+            >
+              <X size={24} />
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 bg-[var(--doraemon-red)] text-white rounded-xl border-2 border-gray-900 hover:brightness-110 active:scale-95 transition-all shadow-[2px_2px_0px_rgba(0,0,0,1)]"
-          >
-            <X size={24} />
-          </button>
-        </div>
+        )}
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-6">
           <div className="space-y-4">
@@ -383,12 +407,12 @@ export default function PPTPlanModal({
           </div>
         </div>
 
-        <div className="p-4 bg-white border-t-4 border-gray-900">
+        <div className={`p-4 bg-white ${embedded ? '' : 'border-t-4 border-gray-900'}`}>
           <button
-            onClick={onClose}
-            className="w-full p-3 bg-gray-200 text-gray-800 font-bold rounded-xl border-2 border-gray-900 hover:brightness-110 active:scale-95 transition-all shadow-[3px_3px_0px_rgba(0,0,0,1)]"
+            onClick={() => void handleCompleteEdit()}
+            className="w-full p-3 bg-green-500 text-white font-bold rounded-xl border-2 border-gray-900 hover:brightness-110 active:scale-95 transition-all shadow-[3px_3px_0px_rgba(0,0,0,1)]"
           >
-            完成编辑
+            完成编辑并查看 PPT 预览
           </button>
         </div>
       </div>
