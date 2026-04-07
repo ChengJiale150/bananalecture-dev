@@ -11,6 +11,10 @@ class StorageLayout:
         return f"projects/{project_id}/slides/{slide_id}/image/original.png"
 
     @staticmethod
+    def slide_image_delivery(project_id: str, slide_id: str) -> str:
+        return f"projects/{project_id}/slides/{slide_id}/image/delivery.webp"
+
+    @staticmethod
     def slide_audio(project_id: str, slide_id: str) -> str:
         return f"projects/{project_id}/slides/{slide_id}/audio/slide.mp3"
 

@@ -62,6 +62,10 @@ def test_generate_image_uses_slide_content(
     with Image.open(BytesIO(file_response.content)) as image:
         assert image.format == "WEBP"
     assert Path(test_settings.STORAGE.DATA_DIR, *StorageLayout.slide_image(project_id, slide_id).split("/")).exists()
+    assert Path(
+        test_settings.STORAGE.DATA_DIR,
+        *StorageLayout.slide_image_delivery(project_id, slide_id).split("/"),
+    ).exists()
 
 
 def test_modify_image_uses_existing_image_as_data_url(
@@ -89,6 +93,10 @@ def test_modify_image_uses_existing_image_as_data_url(
         test_settings.STORAGE.DATA_DIR,
         *StorageLayout.slide_image(project_id, slide_id).split("/"),
     )
+    assert Path(
+        test_settings.STORAGE.DATA_DIR,
+        *StorageLayout.slide_image_delivery(project_id, slide_id).split("/"),
+    ).exists()
     expected_reference = f"data:image/png;base64,{b64encode(original_image_path.read_bytes()).decode('ascii')}"
     assert fake_image_client.calls == [{"prompt": "Add a bright sun", "reference_image": expected_reference}]
 

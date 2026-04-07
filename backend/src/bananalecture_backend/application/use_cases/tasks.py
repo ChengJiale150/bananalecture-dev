@@ -71,12 +71,14 @@ class QueueBatchImageGenerationUseCase:
         session_factory: async_sessionmaker[AsyncSession],
         image_generator: ImageGenerator,
         asset_store: AssetStore,
+        settings: Settings,
     ) -> None:
         self.session = session
         self.runtime = runtime
         self.session_factory = session_factory
         self.image_generator = image_generator
         self.asset_store = asset_store
+        self.settings = settings
         self.projects = ProjectRepository(session)
         self.slides = SlideRepository(session)
         self.tasks = TaskRecordService(session)
@@ -89,7 +91,12 @@ class QueueBatchImageGenerationUseCase:
         async def work(task_id: str, session_factory: async_sessionmaker[AsyncSession]) -> None:
             for index, slide in enumerate(slides, start=1):
                 async with session_factory() as session:
-                    await GenerateSlideImageUseCase(session, self.image_generator, self.asset_store).execute(
+                    await GenerateSlideImageUseCase(
+                        session,
+                        self.image_generator,
+                        self.asset_store,
+                        self.settings,
+                    ).execute(
                         project_id,
                         slide.id,
                     )

@@ -1,4 +1,4 @@
-# ruff: noqa: D102, D107, EM101, EM102, TRY003, TC001, SLF001, PLR0913
+# ruff: noqa: D102, D107, EM101, EM102, TRY003, TC001, PLR0913
 
 from __future__ import annotations
 
@@ -52,91 +52,38 @@ class DeliveredImage:
     filename: str
 
 
-class GenerateSlideImageUseCase:
-    """Generate and persist one slide image."""
+class _SlideImagePersistence:
+    """Persist original slide images and precompressed delivery assets."""
 
-    def __init__(self, session: AsyncSession, image_generator: ImageGenerator, asset_store: AssetStore) -> None:
-        self.session = session
-        self.image_generator = image_generator
+    def __init__(self, asset_store: AssetStore, settings: Settings) -> None:
         self.asset_store = asset_store
-        self.slides = SlideRepository(session)
-        self.slide_resource = SlideResourceService(session)
+        self.settings = settings
 
-    async def execute(self, project_id: str, slide_id: str) -> None:
-        slide = await self.slides.get(project_id, slide_id)
-        if slide is None:
-            raise NotFoundError("Slide not found")
-        prompt = slide.content.strip()
-        if not prompt:
-            raise BadRequestError("Slide content must not be empty")
-
-        image_bytes = await self.image_generator.generate_image(prompt)
+    async def write_generated_image(self, project_id: str, slide_id: str, image_bytes: bytes) -> str:
+        original_key = StorageLayout.slide_image(project_id, slide_id)
+        delivery_key = StorageLayout.slide_image_delivery(project_id, slide_id)
         normalized_image = self._normalize_png(image_bytes)
-        path = await self.asset_store.write_bytes(StorageLayout.slide_image(project_id, slide_id), normalized_image)
-        await self.slide_resource.set_image_path(slide_id, path)
-        await self.session.commit()
+        delivery_image = self._encode_webp(normalized_image)
+
+        original_path = await self.asset_store.write_bytes(original_key, normalized_image)
+        await self.asset_store.write_bytes(delivery_key, delivery_image)
+        return original_path
+
+    async def read_delivery_image(self, project_id: str, slide_id: str, original_key: str) -> bytes:
+        delivery_key = StorageLayout.slide_image_delivery(project_id, slide_id)
+        try:
+            return await self.asset_store.read_bytes(delivery_key)
+        except NotFoundError:
+            original = await self.asset_store.read_bytes(original_key)
+            delivery_image = self._encode_webp(original)
+            await self.asset_store.write_bytes(delivery_key, delivery_image)
+            return delivery_image
 
     def _normalize_png(self, image_bytes: bytes) -> bytes:
         with Image.open(BytesIO(image_bytes)) as image:
             output = BytesIO()
             image.save(output, format="PNG")
         return output.getvalue()
-
-
-class ModifySlideImageUseCase:
-    """Modify an existing slide image from a prompt."""
-
-    def __init__(self, session: AsyncSession, image_generator: ImageGenerator, asset_store: AssetStore) -> None:
-        self.session = session
-        self.image_generator = image_generator
-        self.asset_store = asset_store
-        self.slides = SlideRepository(session)
-        self.slide_resource = SlideResourceService(session)
-
-    async def execute(self, project_id: str, slide_id: str, request: PromptRequest) -> None:
-        prompt_text = request.prompt.strip()
-        if not prompt_text:
-            raise BadRequestError("Prompt must not be empty")
-
-        slide = await self.slides.get(project_id, slide_id)
-        if slide is None:
-            raise NotFoundError("Slide not found")
-        if slide.image_path is None:
-            raise NotFoundError("Image not found")
-
-        current_image = await self.asset_store.read_bytes(slide.image_path)
-        reference_image = self._as_data_url(current_image)
-        image_bytes = await self.image_generator.generate_image(prompt_text, reference_image)
-        normalized_image = GenerateSlideImageUseCase(
-            self.session,
-            self.image_generator,
-            self.asset_store,
-        )._normalize_png(image_bytes)
-        path = await self.asset_store.write_bytes(StorageLayout.slide_image(project_id, slide_id), normalized_image)
-        await self.slide_resource.set_image_path(slide_id, path)
-        await self.session.commit()
-
-    def _as_data_url(self, image_bytes: bytes) -> str:
-        encoded = b64encode(image_bytes).decode("ascii")
-        return f"data:image/png;base64,{encoded}"
-
-
-class GetSlideImageFileUseCase:
-    """Read a stored slide image and return a compressed WebP payload."""
-
-    def __init__(self, slide_resource: SlideResourceService, asset_store: AssetStore, settings: Settings) -> None:
-        self.slide_resource = slide_resource
-        self.asset_store = asset_store
-        self.settings = settings
-
-    async def execute(self, project_id: str, slide_id: str) -> DeliveredImage:
-        image_path = await self.slide_resource.get_image_path(project_id, slide_id)
-        original = await self.asset_store.read_bytes(image_path)
-        return DeliveredImage(
-            content=self._encode_webp(original),
-            media_type="image/webp",
-            filename=f"{slide_id}.webp",
-        )
 
     def _encode_webp(self, image_bytes: bytes) -> bytes:
         delivery = self.settings.IMAGE_DELIVERY
@@ -158,6 +105,95 @@ class GetSlideImageFileUseCase:
                 method=delivery.WEBP_METHOD,
             )
         return output.getvalue()
+
+
+class GenerateSlideImageUseCase:
+    """Generate and persist one slide image."""
+
+    def __init__(
+        self,
+        session: AsyncSession,
+        image_generator: ImageGenerator,
+        asset_store: AssetStore,
+        settings: Settings,
+    ) -> None:
+        self.session = session
+        self.image_generator = image_generator
+        self.asset_store = asset_store
+        self.image_persistence = _SlideImagePersistence(asset_store, settings)
+        self.slides = SlideRepository(session)
+        self.slide_resource = SlideResourceService(session)
+
+    async def execute(self, project_id: str, slide_id: str) -> None:
+        slide = await self.slides.get(project_id, slide_id)
+        if slide is None:
+            raise NotFoundError("Slide not found")
+        prompt = slide.content.strip()
+        if not prompt:
+            raise BadRequestError("Slide content must not be empty")
+
+        image_bytes = await self.image_generator.generate_image(prompt)
+        path = await self.image_persistence.write_generated_image(project_id, slide_id, image_bytes)
+        await self.slide_resource.set_image_path(slide_id, path)
+        await self.session.commit()
+
+
+class ModifySlideImageUseCase:
+    """Modify an existing slide image from a prompt."""
+
+    def __init__(
+        self,
+        session: AsyncSession,
+        image_generator: ImageGenerator,
+        asset_store: AssetStore,
+        settings: Settings,
+    ) -> None:
+        self.session = session
+        self.image_generator = image_generator
+        self.asset_store = asset_store
+        self.image_persistence = _SlideImagePersistence(asset_store, settings)
+        self.slides = SlideRepository(session)
+        self.slide_resource = SlideResourceService(session)
+
+    async def execute(self, project_id: str, slide_id: str, request: PromptRequest) -> None:
+        prompt_text = request.prompt.strip()
+        if not prompt_text:
+            raise BadRequestError("Prompt must not be empty")
+
+        slide = await self.slides.get(project_id, slide_id)
+        if slide is None:
+            raise NotFoundError("Slide not found")
+        if slide.image_path is None:
+            raise NotFoundError("Image not found")
+
+        current_image = await self.asset_store.read_bytes(slide.image_path)
+        reference_image = self._as_data_url(current_image)
+        image_bytes = await self.image_generator.generate_image(prompt_text, reference_image)
+        path = await self.image_persistence.write_generated_image(project_id, slide_id, image_bytes)
+        await self.slide_resource.set_image_path(slide_id, path)
+        await self.session.commit()
+
+    def _as_data_url(self, image_bytes: bytes) -> str:
+        encoded = b64encode(image_bytes).decode("ascii")
+        return f"data:image/png;base64,{encoded}"
+
+
+class GetSlideImageFileUseCase:
+    """Read a cached slide image and backfill the cache for legacy originals."""
+
+    def __init__(self, slide_resource: SlideResourceService, asset_store: AssetStore, settings: Settings) -> None:
+        self.slide_resource = slide_resource
+        self.asset_store = asset_store
+        self.image_persistence = _SlideImagePersistence(asset_store, settings)
+
+    async def execute(self, project_id: str, slide_id: str) -> DeliveredImage:
+        image_path = await self.slide_resource.get_image_path(project_id, slide_id)
+        cached_image = await self.image_persistence.read_delivery_image(project_id, slide_id, image_path)
+        return DeliveredImage(
+            content=cached_image,
+            media_type="image/webp",
+            filename=f"{slide_id}.webp",
+        )
 
 
 class GenerateSlideDialoguesUseCase:

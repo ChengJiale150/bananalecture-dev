@@ -190,16 +190,18 @@ def get_generate_slide_image_use_case(
     session: DBSessionDep,
     image_generator: ImageGeneratorDep,
     asset_store: AssetStoreDep,
+    settings: SettingsDep,
 ) -> GenerateSlideImageUseCase:
-    return GenerateSlideImageUseCase(session, image_generator, asset_store)
+    return GenerateSlideImageUseCase(session, image_generator, asset_store, settings)
 
 
 def get_modify_slide_image_use_case(
     session: DBSessionDep,
     image_generator: ImageGeneratorDep,
     asset_store: AssetStoreDep,
+    settings: SettingsDep,
 ) -> ModifySlideImageUseCase:
-    return ModifySlideImageUseCase(session, image_generator, asset_store)
+    return ModifySlideImageUseCase(session, image_generator, asset_store, settings)
 
 
 def get_slide_image_file_use_case(
@@ -261,6 +263,7 @@ def get_queue_batch_image_generation_use_case(
         context.session_factory,
         image_generator,
         asset_store,
+        context.settings,
     )
 
 

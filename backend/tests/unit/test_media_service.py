@@ -10,6 +10,7 @@ from PIL import Image
 
 from bananalecture_backend.application.use_cases import (
     GenerateProjectVideoUseCase,
+    GenerateSlideImageUseCase,
     GenerateSlideAudioUseCase,
     GetSlideImageFileUseCase,
     QueueProjectVideoGenerationUseCase,
@@ -85,6 +86,12 @@ def _png_bytes(width: int, height: int) -> bytes:
     return output.getvalue()
 
 
+def _webp_bytes(width: int, height: int) -> bytes:
+    output = BytesIO()
+    Image.new("RGB", (width, height), color="blue").save(output, format="WEBP", quality=80, method=4)
+    return output.getvalue()
+
+
 async def _create_project_and_slide(db_session, slide_type: SlideType = SlideType.CONTENT) -> tuple[str, str]:
     project = await ProjectResourceService(db_session).create_project(
         CreateProjectRequest(name="Deck", user_id="admin")
@@ -139,6 +146,8 @@ async def test_get_slide_image_file_returns_webp_with_resized_dimensions(
     await storage.initialize()
 
     image_path = await storage.write_bytes(StorageLayout.slide_image(project_id, slide_id), _png_bytes(3200, 1800))
+    cached_image = _webp_bytes(1600, 900)
+    await storage.write_bytes(StorageLayout.slide_image_delivery(project_id, slide_id), cached_image)
     await SlideResourceService(db_session).set_image_path(slide_id, image_path)
     await db_session.commit()
 
@@ -162,14 +171,12 @@ async def test_get_slide_image_file_returns_webp_with_resized_dimensions(
 
     assert delivered.media_type == "image/webp"
     assert delivered.filename == f"{slide_id}.webp"
-    with Image.open(BytesIO(delivered.content)) as image:
-        assert image.format == "WEBP"
-        assert image.size == (1600, 900)
+    assert delivered.content == cached_image
 
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_get_slide_image_file_does_not_upscale_small_images(
+async def test_get_slide_image_file_backfills_missing_delivery_cache(
     db_session,
     test_settings: Settings,
 ) -> None:
@@ -194,6 +201,48 @@ async def test_get_slide_image_file_does_not_upscale_small_images(
     with Image.open(BytesIO(delivered.content)) as image:
         assert image.format == "WEBP"
         assert image.size == (640, 360)
+
+    cached_path = storage.resolve_file(StorageLayout.slide_image_delivery(project_id, slide_id))
+    with Image.open(cached_path) as cached:
+        assert cached.format == "WEBP"
+        assert cached.size == (640, 360)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_generate_slide_image_writes_original_and_delivery_cache(
+    db_session,
+    test_settings: Settings,
+    fake_image_client,
+) -> None:
+    project_id, slide_id = await _create_project_and_slide(db_session)
+    storage = StorageService(test_settings.STORAGE.DATA_DIR)
+    await storage.initialize()
+    settings = test_settings.model_copy(
+        update={"IMAGE_DELIVERY": ImageDeliverySettings(MAX_WIDTH=1600, MAX_HEIGHT=900)}
+    )
+
+    await GenerateSlideImageUseCase(
+        db_session,
+        fake_image_client,
+        storage,
+        settings,
+    ).execute(project_id, slide_id)
+
+    slide = await SlideRepository(db_session).get(project_id, slide_id)
+    assert slide is not None
+    assert slide.image_path == StorageLayout.slide_image(project_id, slide_id)
+
+    original_path = storage.resolve_file(StorageLayout.slide_image(project_id, slide_id))
+    delivery_path = storage.resolve_file(StorageLayout.slide_image_delivery(project_id, slide_id))
+
+    with Image.open(original_path) as original:
+        assert original.format == "PNG"
+        assert original.size == (1, 1)
+
+    with Image.open(delivery_path) as delivery:
+        assert delivery.format == "WEBP"
+        assert delivery.size == (1, 1)
 
 
 @pytest.mark.unit
