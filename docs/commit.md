@@ -14,7 +14,7 @@ Before committing, follow these steps to ensure quality:
 
    | Project | Command | Description |
    |---------|---------|-------------|
-   | Backend | `just pre-commit` | Runs linting, type checks, and architecture tests |
+   | Backend | `just check` | Runs linting, type checks, and architecture tests |
    | Frontend | `bun run check` | Runs linting, type checks, and tests |
 
    Only proceed with the commit if all checks pass.

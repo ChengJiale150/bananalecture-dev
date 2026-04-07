@@ -4,6 +4,7 @@
 .trae/
 *.swp
 *.swo
+.codex
 
 # Environment variables
 .env.frontend

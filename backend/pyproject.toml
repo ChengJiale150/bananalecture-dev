@@ -39,8 +39,6 @@ dev = [
     # Type Checking
     "mypy",
     "types-pyyaml",
-    # Workflow
-    "pre-commit",
 ]
 
 [tool.hatch.version]

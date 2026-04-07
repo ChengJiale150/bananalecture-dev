@@ -51,4 +51,3 @@ Example: `feat: add user authentication module`
 
 - Python 3.12+
 - [uv](https://github.com/astral-sh/uv) for dependency management.
-- [pre-commit](https://pre-commit.com/) for git hooks.

@@ -15,8 +15,6 @@ install:
     fi
 
     bun install
-    bun run pre-commit install || true
-    bun run pre-commit install --hook-type commit-msg || true
 
 # Start the development server
 run:
@@ -26,7 +24,6 @@ run:
 clean:
     rm -rf .next
     rm -rf .bun-cache
-    rm -rf .pre-commit
     rm -rf node_modules/.cache
     find . -type d -name ".turbo" -exec rm -rf {} + 2>/dev/null || true
     find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true

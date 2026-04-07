@@ -28,8 +28,6 @@ install:
     fi
 
     uv sync
-    uv run pre-commit install
-    uv run pre-commit install --hook-type commit-msg
 
 # Sync environment
 sync:
@@ -65,10 +63,6 @@ security-check:
 
 # Run all checks (format, lint, type-check, test)
 check: format lint type-check test
-
-# Run pre-commit on all files
-pre-commit:
-    uv run pre-commit run --all-files
 
 # Build the package
 build:
