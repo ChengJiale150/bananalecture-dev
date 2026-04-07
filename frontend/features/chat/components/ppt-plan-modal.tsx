@@ -412,7 +412,7 @@ export default function PPTPlanModal({
             onClick={() => void handleCompleteEdit()}
             className="w-full p-3 bg-green-500 text-white font-bold rounded-xl border-2 border-gray-900 hover:brightness-110 active:scale-95 transition-all shadow-[3px_3px_0px_rgba(0,0,0,1)]"
           >
-            完成编辑并查看 PPT 预览
+            {onSaveAndPreview ? '完成编辑并查看 PPT 预览' : '完成编辑'}
           </button>
         </div>
       </div>
