@@ -1,8 +1,9 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import type { Slide } from '@/features/projects/types';
-import PPTPlanModal from './ppt-plan-modal';
 
+const PPTPlanModal = dynamic(() => import('./ppt-plan-modal'));
 interface PPTPlanPreviewProps {
   pptPlan: { slides: Slide[] } | undefined;
   onUpdateSlide: (slide: Slide) => Promise<Slide | null>;
