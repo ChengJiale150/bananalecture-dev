@@ -126,7 +126,7 @@ export default function PreviewPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-[#F0F8FF] flex items-center justify-center">
-          <Loader2 size={48} className="animate-spin text-[var(--doraemon-blue)]" />
+          <Loader2 size={48} className="animate-spin text-[var(--banana-blue)]" />
         </div>
       }
     >

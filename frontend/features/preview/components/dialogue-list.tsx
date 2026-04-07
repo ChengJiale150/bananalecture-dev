@@ -86,7 +86,7 @@ export function DialogueList({
             <button
               onClick={() => void handleAdd()}
               disabled={isBusy}
-              className="flex items-center gap-2 rounded-2xl border-2 border-[var(--doraemon-blue)] px-3 py-2 text-sm font-bold text-[var(--doraemon-blue)] hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400"
+              className="flex items-center gap-2 rounded-2xl border-2 border-[var(--banana-blue)] px-3 py-2 text-sm font-bold text-[var(--banana-blue)] hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400"
             >
               <Plus size={16} />
               添加对话
@@ -118,7 +118,7 @@ export function DialogueList({
                                 : prev
                             )
                           }
-                          className="text-sm font-bold text-[var(--doraemon-blue)] border border-gray-300 rounded-lg px-2 py-1"
+                          className="text-sm font-bold text-[var(--banana-blue)] border border-gray-300 rounded-lg px-2 py-1"
                         >
                           {DIALOGUE_ROLES.map(role => (
                             <option key={role} value={role}>
@@ -163,7 +163,7 @@ export function DialogueList({
                       </>
                     ) : (
                       <>
-                        <span className="rounded-lg border border-gray-300 px-2 py-1 text-sm font-bold text-[var(--doraemon-blue)]">
+                        <span className="rounded-lg border border-gray-300 px-2 py-1 text-sm font-bold text-[var(--banana-blue)]">
                           {activeDialogue.role}
                         </span>
                         <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded-full border border-gray-200 flex items-center gap-1">
@@ -225,7 +225,7 @@ export function DialogueList({
                     )}
                     <button
                       onClick={() => void onDelete(dialogue.id)}
-                      className="p-1 hover:text-[var(--doraemon-red)] rounded hover:bg-red-50"
+                      className="p-1 hover:text-[var(--banana-red)] rounded hover:bg-red-50"
                       disabled={isBusy}
                       title="删除"
                     >

@@ -123,7 +123,7 @@ export default function ChatInput({
             placeholder={
               isCentered
                 ? 'Describe the topic you want to learn about...'
-                : 'Ask Doraemon something...'
+                : 'Create your Lecture'
             }
             disabled={status !== 'ready' && status !== 'submitted'}
             value={text}
@@ -135,7 +135,7 @@ export default function ChatInput({
           {status === 'streaming' || status === 'submitted' ? (
             <button
               onClick={stop}
-              className="p-3 rounded-xl bg-[var(--doraemon-red)] text-white border-2 border-gray-900 hover:brightness-110 active:scale-95 transition-all shadow-[2px_2px_0px_rgba(0,0,0,1)]"
+              className="p-3 rounded-xl bg-[var(--banana-red)] text-white border-2 border-gray-900 hover:brightness-110 active:scale-95 transition-all shadow-[2px_2px_0px_rgba(0,0,0,1)]"
               title="Stop generating"
             >
               <Square size={20} fill="currentColor" />
@@ -144,7 +144,7 @@ export default function ChatInput({
             <button
               onClick={() => handleSubmit()}
               disabled={!text.trim() || status !== 'ready'}
-              className="p-3 rounded-xl bg-[var(--doraemon-blue)] text-white border-2 border-gray-900 hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[2px_2px_0px_rgba(0,0,0,1)]"
+              className="p-3 rounded-xl bg-[var(--banana-blue)] text-white border-2 border-gray-900 hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[2px_2px_0px_rgba(0,0,0,1)]"
               title="Send message"
             >
               <Send size={20} strokeWidth={3} />
@@ -155,7 +155,7 @@ export default function ChatInput({
 
       {!isCentered && (
         <div className="text-center text-xs font-bold text-gray-400 mt-3 uppercase tracking-wider">
-          Doraemon Agent can make mistakes. Check important info!
+          Banana Lecture can make mistakes. Check important info!
         </div>
       )}
     </div>

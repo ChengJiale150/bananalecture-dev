@@ -3,49 +3,49 @@
 @tailwind utilities;
 
 :root {
-  --doraemon-blue: #0096e6;
-  --doraemon-red: #dd0000;
-  --doraemon-yellow: #ffd700;
-  --doraemon-white: #ffffff;
-  --doraemon-dark: #333333;
-  --doraemon-border: 3px solid #333333;
-  --doraemon-shadow: 4px 4px 0px #333333;
+  --banana-blue: #0096e6;
+  --banana-red: #dd0000;
+  --banana-yellow: #ffd700;
+  --banana-white: #ffffff;
+  --banana-dark: #333333;
+  --banana-border: 3px solid #333333;
+  --banana-shadow: 4px 4px 0px #333333;
 }
 
 body {
   background-color: #f0f8ff; /* Light blue background */
-  color: var(--doraemon-dark);
+  color: var(--banana-dark);
   font-family:
     'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', sans-serif; /* Cartoonish font fallback */
 }
 
 @layer components {
-  .doraemon-card {
+  .banana-card {
     background-color: white;
-    border: var(--doraemon-border);
+    border: var(--banana-border);
     border-radius: 16px;
-    box-shadow: var(--doraemon-shadow);
+    box-shadow: var(--banana-shadow);
     transition: all 0.2s ease;
   }
 
-  .doraemon-card:hover {
+  .banana-card:hover {
     transform: translate(-2px, -2px);
     box-shadow: 6px 6px 0px #333333;
   }
 
-  .doraemon-btn {
+  .banana-btn {
     @apply px-4 py-2 rounded-full font-bold transition-all border-2 border-gray-800 shadow-[2px_2px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_rgba(0,0,0,1)];
   }
 
-  .doraemon-btn-primary {
-    @apply bg-[var(--doraemon-blue)] text-white hover:brightness-110;
+  .banana-btn-primary {
+    @apply bg-[var(--banana-blue)] text-white hover:brightness-110;
   }
 
-  .doraemon-btn-danger {
-    @apply bg-[var(--doraemon-red)] text-white hover:brightness-110;
+  .banana-btn-danger {
+    @apply bg-[var(--banana-red)] text-white hover:brightness-110;
   }
 
-  .doraemon-btn-warning {
-    @apply bg-[var(--doraemon-yellow)] text-gray-900 hover:brightness-110;
+  .banana-btn-warning {
+    @apply bg-[var(--banana-yellow)] text-gray-900 hover:brightness-110;
   }
 }

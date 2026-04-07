@@ -90,12 +90,12 @@ export default function Sidebar({
 
   return (
     <div
-      className={`${isExpanded ? 'w-72' : 'w-20'} bg-[var(--doraemon-blue)] text-white flex flex-col h-screen border-r-4 border-gray-800 shadow-[4px_0px_0px_rgba(0,0,0,0.2)] z-10 relative transition-all duration-300`}
+      className={`${isExpanded ? 'w-72' : 'w-20'} bg-[var(--banana-blue)] text-white flex flex-col h-screen border-r-4 border-gray-800 shadow-[4px_0px_0px_rgba(0,0,0,0.2)] z-10 relative transition-all duration-300`}
     >
       <div
         className={`${isExpanded ? 'p-6' : 'p-4'} border-b-4 border-gray-800 bg-white text-gray-900 flex flex-row items-center justify-center gap-4`}
       >
-        <div className="w-12 h-12 bg-[var(--doraemon-yellow)] rounded-full border-4 border-gray-900 flex items-center justify-center shadow-[4px_4px_0px_rgba(0,0,0,1)]">
+        <div className="w-12 h-12 bg-[var(--banana-yellow)] rounded-full border-4 border-gray-900 flex items-center justify-center shadow-[4px_4px_0px_rgba(0,0,0,1)]">
           <GraduationCap size={isExpanded ? 28 : 20} className="text-gray-900" />
         </div>
         {isExpanded && (
@@ -109,11 +109,11 @@ export default function Sidebar({
       </div>
 
       <div
-        className={`${isExpanded ? 'p-4' : 'p-2'} border-b-4 border-gray-800 bg-[var(--doraemon-blue)]`}
+        className={`${isExpanded ? 'p-4' : 'p-2'} border-b-4 border-gray-800 bg-[var(--banana-blue)]`}
       >
         <button
           onClick={onNew}
-          className={`w-full flex items-center justify-center gap-2 doraemon-btn doraemon-btn-danger ${isExpanded ? '' : 'aspect-square'}`}
+          className={`w-full flex items-center justify-center gap-2 banana-btn banana-btn-danger ${isExpanded ? '' : 'aspect-square'}`}
           title={isExpanded ? '' : 'New Project'}
         >
           <Plus size={20} strokeWidth={3} />
@@ -160,11 +160,11 @@ export default function Sidebar({
               className={`flex items-center gap-3 overflow-hidden flex-1 text-gray-800 ${!isExpanded ? 'justify-center' : ''}`}
             >
               {currentProjectId === project.id && isLoadingProjectDetail ? (
-                <Loader2 size={18} className="shrink-0 animate-spin text-[var(--doraemon-blue)]" />
+                <Loader2 size={18} className="shrink-0 animate-spin text-[var(--banana-blue)]" />
               ) : (
                 <MessageSquare
                   size={18}
-                  className={`shrink-0 ${currentProjectId === project.id ? 'text-[var(--doraemon-blue)]' : 'text-gray-400'}`}
+                  className={`shrink-0 ${currentProjectId === project.id ? 'text-[var(--banana-blue)]' : 'text-gray-400'}`}
                 />
               )}
 
@@ -175,7 +175,7 @@ export default function Sidebar({
                     onClick={e => e.stopPropagation()}
                   >
                     <input
-                      className="bg-white text-gray-900 text-xs p-1 rounded w-full outline-none border-2 border-[var(--doraemon-blue)]"
+                      className="bg-white text-gray-900 text-xs p-1 rounded w-full outline-none border-2 border-[var(--banana-blue)]"
                       value={editTitle}
                       onChange={e => setEditTitle(e.target.value)}
                       autoFocus
@@ -262,7 +262,7 @@ export default function Sidebar({
                   disabled={isLoadingProjects}
                   className={`min-w-8 rounded-lg border-2 px-2 py-1 text-xs font-bold transition-colors ${
                     page === currentPage
-                      ? 'border-gray-900 bg-[var(--doraemon-blue)] text-white'
+                      ? 'border-gray-900 bg-[var(--banana-blue)] text-white'
                       : 'border-gray-300 bg-white text-gray-700 hover:border-gray-900'
                   }`}
                 >
@@ -304,7 +304,7 @@ export default function Sidebar({
           className={`w-full flex items-center ${isExpanded ? 'justify-between' : 'justify-center'} p-3 rounded-xl hover:bg-white border-2 border-transparent hover:border-gray-300 transition-all shadow-sm`}
         >
           <span className={`flex items-center ${isExpanded ? 'gap-3' : ''} font-bold text-sm`}>
-            <div className="w-8 h-8 bg-[var(--doraemon-blue)] rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 bg-[var(--banana-blue)] rounded-full flex items-center justify-center">
               <User size={16} className="text-white" />
             </div>
             {isExpanded && <span>User</span>}

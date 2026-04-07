@@ -57,8 +57,8 @@ export default function ToolView({ invocation }: { invocation: ToolInvocation })
   if (!args && isStreaming) {
     return (
       <div className="my-4">
-        <div className="p-4 bg-white border-2 border-[var(--doraemon-blue)] rounded-xl shadow-[4px_4px_0px_var(--doraemon-blue)]">
-          <div className="flex items-center gap-2 text-[var(--doraemon-blue)] font-bold">
+        <div className="p-4 bg-white border-2 border-[var(--banana-blue)] rounded-xl shadow-[4px_4px_0px_var(--banana-blue)]">
+          <div className="flex items-center gap-2 text-[var(--banana-blue)] font-bold">
             <Loader2 size={20} className="animate-spin" />
             <span>正在生成哆啦A梦教学漫画 PPT 规划...</span>
           </div>
@@ -81,9 +81,9 @@ export default function ToolView({ invocation }: { invocation: ToolInvocation })
     const getSlideIcon = (type: string) => {
       switch (type) {
         case 'cover':
-          return <Sparkles size={20} className="text-[var(--doraemon-yellow)]" />;
+          return <Sparkles size={20} className="text-[var(--banana-yellow)]" />;
         case 'introduction':
-          return <BookOpen size={20} className="text-[var(--doraemon-blue)]" />;
+          return <BookOpen size={20} className="text-[var(--banana-blue)]" />;
         case 'content':
           return <Lightbulb size={20} className="text-yellow-500" />;
         case 'summary':
@@ -115,9 +115,9 @@ export default function ToolView({ invocation }: { invocation: ToolInvocation })
     const getSlideBorderColor = (type: string) => {
       switch (type) {
         case 'cover':
-          return 'border-[var(--doraemon-yellow)]';
+          return 'border-[var(--banana-yellow)]';
         case 'introduction':
-          return 'border-[var(--doraemon-blue)]';
+          return 'border-[var(--banana-blue)]';
         case 'content':
           return 'border-yellow-400';
         case 'summary':
@@ -132,9 +132,9 @@ export default function ToolView({ invocation }: { invocation: ToolInvocation })
     const getSlideShadowColor = (type: string) => {
       switch (type) {
         case 'cover':
-          return 'shadow-[4px_4px_0px_var(--doraemon-yellow)]';
+          return 'shadow-[4px_4px_0px_var(--banana-yellow)]';
         case 'introduction':
-          return 'shadow-[4px_4px_0px_var(--doraemon-blue)]';
+          return 'shadow-[4px_4px_0px_var(--banana-blue)]';
         case 'content':
           return 'shadow-[4px_4px_0px_rgba(250,204,21,1)]';
         case 'summary':
@@ -148,10 +148,10 @@ export default function ToolView({ invocation }: { invocation: ToolInvocation })
 
     return (
       <div className="my-4">
-        <div className="p-4 bg-white border-2 border-[var(--doraemon-blue)] rounded-xl shadow-[4px_4px_0px_var(--doraemon-blue)] mb-4">
+        <div className="p-4 bg-white border-2 border-[var(--banana-blue)] rounded-xl shadow-[4px_4px_0px_var(--banana-blue)] mb-4">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="w-full flex items-center justify-between font-bold text-[var(--doraemon-blue)] mb-1 hover:brightness-110 transition-all"
+            className="w-full flex items-center justify-between font-bold text-[var(--banana-blue)] mb-1 hover:brightness-110 transition-all"
           >
             <div className="flex items-center gap-2">
               {isStreaming ? (
@@ -210,7 +210,7 @@ export default function ToolView({ invocation }: { invocation: ToolInvocation })
   return (
     <div className="my-4 p-4 bg-white border-2 border-gray-900 rounded-xl shadow-[4px_4px_0px_rgba(0,0,0,1)] text-sm font-mono">
       <div className="font-black text-gray-900 text-xs mb-2 uppercase tracking-widest flex items-center gap-2">
-        <div className="w-3 h-3 bg-[var(--doraemon-blue)] rounded-full"></div>
+        <div className="w-3 h-3 bg-[var(--banana-blue)] rounded-full"></div>
         TOOL: {toolName}
         {isStreaming && <Loader2 size={12} className="animate-spin" />}
       </div>

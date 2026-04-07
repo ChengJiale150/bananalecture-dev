@@ -38,7 +38,7 @@ export function PreviewFooter({
               onClick={() => onPageSelect(page)}
               className={`min-w-9 rounded-xl border-2 px-2.5 py-1.5 text-sm font-black transition-all ${
                 page === currentPage
-                  ? 'border-gray-900 bg-[var(--doraemon-blue)] text-white'
+                  ? 'border-gray-900 bg-[var(--banana-blue)] text-white'
                   : 'border-transparent bg-white text-gray-700 hover:border-gray-900'
               }`}
             >
@@ -53,7 +53,7 @@ export function PreviewFooter({
           className={`flex items-center gap-2 rounded-xl border-2 px-3 py-2 text-sm font-bold transition-all ${
             currentPage === totalSlides
               ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-              : 'bg-white text-[var(--doraemon-blue)] border-gray-900 hover:bg-blue-50 shadow-[2px_2px_0px_rgba(0,0,0,1)]'
+              : 'bg-white text-[var(--banana-blue)] border-gray-900 hover:bg-blue-50 shadow-[2px_2px_0px_rgba(0,0,0,1)]'
           }`}
         >
           下一页

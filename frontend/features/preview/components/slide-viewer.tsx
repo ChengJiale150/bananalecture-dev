@@ -118,7 +118,7 @@ export function SlideViewer({
                             className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-left"
                           >
                             <div className="mb-2 flex items-center gap-2">
-                              <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-bold text-[var(--doraemon-blue)]">
+                              <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-bold text-[var(--banana-blue)]">
                                 {dialogue.role}
                               </span>
                               <span className="text-xs text-gray-400">#{index + 1}</span>
@@ -150,7 +150,7 @@ export function SlideViewer({
             className={`flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 px-4 py-3 text-sm font-bold transition-all ${
               isGeneratingAll || isGeneratingImage
                 ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                : 'bg-[var(--doraemon-blue)] text-white border-[var(--doraemon-blue)] hover:brightness-110'
+                : 'bg-[var(--banana-blue)] text-white border-[var(--banana-blue)] hover:brightness-110'
             }`}
           >
             <ImageIcon size={18} />
@@ -161,7 +161,7 @@ export function SlideViewer({
             disabled={!canModifyImage}
             className={`flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 px-4 py-3 text-sm font-bold transition-all ${
               canModifyImage
-                ? 'bg-white text-[var(--doraemon-blue)] border-[var(--doraemon-blue)] hover:bg-blue-50'
+                ? 'bg-white text-[var(--banana-blue)] border-[var(--banana-blue)] hover:bg-blue-50'
                 : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
             }`}
           >
@@ -174,7 +174,7 @@ export function SlideViewer({
             className={`flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 px-4 py-3 text-sm font-bold transition-all ${
               isGeneratingAll || isGeneratingDialogues
                 ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                : 'bg-white text-[var(--doraemon-blue)] border-[var(--doraemon-blue)] hover:bg-blue-50'
+                : 'bg-white text-[var(--banana-blue)] border-[var(--banana-blue)] hover:bg-blue-50'
             }`}
           >
             <FileText size={18} />
@@ -185,7 +185,7 @@ export function SlideViewer({
             disabled={!canGenerateAudio}
             className={`flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 px-4 py-3 text-sm font-bold transition-all ${
               canGenerateAudio
-                ? 'bg-white text-[var(--doraemon-blue)] border-[var(--doraemon-blue)] hover:bg-blue-50'
+                ? 'bg-white text-[var(--banana-blue)] border-[var(--banana-blue)] hover:bg-blue-50'
                 : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
             }`}
           >
@@ -197,7 +197,7 @@ export function SlideViewer({
             disabled={!canPlayAudio}
             className={`flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 px-4 py-3 text-sm font-bold transition-all ${
               canPlayAudio
-                ? 'bg-white text-[var(--doraemon-blue)] border-[var(--doraemon-blue)] hover:bg-blue-50'
+                ? 'bg-white text-[var(--banana-blue)] border-[var(--banana-blue)] hover:bg-blue-50'
                 : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
             }`}
           >
@@ -248,7 +248,7 @@ export function SlideViewer({
               value={modifyPrompt}
               onChange={event => setModifyPrompt(event.target.value)}
               rows={5}
-              className="w-full rounded-2xl border-2 border-gray-300 p-3 text-sm text-gray-800 outline-none focus:border-[var(--doraemon-blue)]"
+              className="w-full rounded-2xl border-2 border-gray-300 p-3 text-sm text-gray-800 outline-none focus:border-[var(--banana-blue)]"
               placeholder="例如：把背景改成教室场景，并保持卡通科普风格。"
             />
             <div className="mt-4 flex justify-end gap-3">
@@ -262,7 +262,7 @@ export function SlideViewer({
               <button
                 onClick={() => void handleSubmitModifyImage()}
                 disabled={!modifyPrompt.trim() || isModifyingImage}
-                className="rounded-xl border-2 border-gray-900 bg-[var(--doraemon-blue)] px-4 py-2 font-bold text-white hover:brightness-110 disabled:cursor-not-allowed disabled:bg-gray-300"
+                className="rounded-xl border-2 border-gray-900 bg-[var(--banana-blue)] px-4 py-2 font-bold text-white hover:brightness-110 disabled:cursor-not-allowed disabled:bg-gray-300"
               >
                 {isModifyingImage ? '提交中...' : '确认修改'}
               </button>

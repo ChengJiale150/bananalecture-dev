@@ -59,7 +59,7 @@ export function PreviewHeader({
         ? 'bg-gray-400'
         : generationSession?.status === 'completed'
           ? 'bg-green-500'
-          : 'bg-[var(--doraemon-blue)]';
+          : 'bg-[var(--banana-blue)]';
 
   return (
     <header className="bg-white border-b-4 border-gray-900 shadow-sm flex-none z-10 relative">
@@ -78,7 +78,7 @@ export function PreviewHeader({
             className={`flex items-center gap-2 px-6 py-3 text-white font-black rounded-full border-2 border-gray-900 transition-all shadow-[3px_3px_0px_rgba(0,0,0,1)] ${
               isGeneratingAll
                 ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-[var(--doraemon-blue)] hover:brightness-110'
+                : 'bg-[var(--banana-blue)] hover:brightness-110'
             }`}
           >
             <Sparkles size={18} />
@@ -108,7 +108,7 @@ export function PreviewHeader({
               高级功能 <ChevronDown size={16} />
             </button>
             {showAdvancedTools && (
-              <div className="absolute top-full mt-2 right-0 bg-white border-2 border-[var(--doraemon-blue)] rounded-xl shadow-lg w-56 overflow-hidden z-50">
+              <div className="absolute top-full mt-2 right-0 bg-white border-2 border-[var(--banana-blue)] rounded-xl shadow-lg w-56 overflow-hidden z-50">
                 {ADVANCED_ACTIONS.map((action, index) => {
                   const Icon = action.icon;
 
@@ -120,7 +120,7 @@ export function PreviewHeader({
                         setShowAdvancedTools(false);
                       }}
                       disabled={isGeneratingAll}
-                      className={`w-full flex items-center gap-2 px-4 py-3 text-left text-[var(--doraemon-blue)] hover:bg-blue-50 ${
+                      className={`w-full flex items-center gap-2 px-4 py-3 text-left text-[var(--banana-blue)] hover:bg-blue-50 ${
                         index < ADVANCED_ACTIONS.length - 1 ? 'border-b border-gray-100' : ''
                       } ${isGeneratingAll ? 'cursor-not-allowed bg-gray-50 text-gray-300' : ''}`}
                     >

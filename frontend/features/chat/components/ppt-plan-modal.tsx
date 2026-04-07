@@ -83,9 +83,9 @@ export default function PPTPlanModal({
   const getSlideIcon = (type: SlideType) => {
     switch (type) {
       case 'cover':
-        return <Sparkles size={20} className="text-[var(--doraemon-yellow)]" />;
+        return <Sparkles size={20} className="text-[var(--banana-yellow)]" />;
       case 'introduction':
-        return <BookOpen size={20} className="text-[var(--doraemon-blue)]" />;
+        return <BookOpen size={20} className="text-[var(--banana-blue)]" />;
       case 'content':
         return <Lightbulb size={20} className="text-yellow-500" />;
       case 'summary':
@@ -117,9 +117,9 @@ export default function PPTPlanModal({
   const getSlideBorderColor = (type: SlideType) => {
     switch (type) {
       case 'cover':
-        return 'border-[var(--doraemon-yellow)]';
+        return 'border-[var(--banana-yellow)]';
       case 'introduction':
-        return 'border-[var(--doraemon-blue)]';
+        return 'border-[var(--banana-blue)]';
       case 'content':
         return 'border-yellow-400';
       case 'summary':
@@ -134,9 +134,9 @@ export default function PPTPlanModal({
   const getSlideShadowColor = (type: SlideType) => {
     switch (type) {
       case 'cover':
-        return 'shadow-[4px_4px_0px_var(--doraemon-yellow)]';
+        return 'shadow-[4px_4px_0px_var(--banana-yellow)]';
       case 'introduction':
-        return 'shadow-[4px_4px_0px_var(--doraemon-blue)]';
+        return 'shadow-[4px_4px_0px_var(--banana-blue)]';
       case 'content':
         return 'shadow-[4px_4px_0px_rgba(250,204,21,1)]';
       case 'summary':
@@ -242,7 +242,7 @@ export default function PPTPlanModal({
         {!embedded && (
           <div className="flex items-center justify-between p-4 bg-white border-b-4 border-gray-900">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-[var(--doraemon-yellow)] rounded-full border-2 border-gray-900 flex items-center justify-center">
+              <div className="w-10 h-10 bg-[var(--banana-yellow)] rounded-full border-2 border-gray-900 flex items-center justify-center">
                 <Sparkles size={24} className="text-gray-900" />
               </div>
               <div>
@@ -254,7 +254,7 @@ export default function PPTPlanModal({
             </div>
             <button
               onClick={onClose}
-              className="p-2 bg-[var(--doraemon-red)] text-white rounded-xl border-2 border-gray-900 hover:brightness-110 active:scale-95 transition-all shadow-[2px_2px_0px_rgba(0,0,0,1)]"
+              className="p-2 bg-[var(--banana-red)] text-white rounded-xl border-2 border-gray-900 hover:brightness-110 active:scale-95 transition-all shadow-[2px_2px_0px_rgba(0,0,0,1)]"
             >
               <X size={24} />
             </button>
@@ -399,7 +399,7 @@ export default function PPTPlanModal({
             <button
               onClick={() => void handleAddSlide()}
               disabled={isMutating}
-              className="w-full flex items-center justify-center gap-2 p-4 bg-white border-2 border-dashed border-gray-400 rounded-xl hover:border-[var(--doraemon-blue)] hover:bg-[#F0F8FF] transition-all disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400"
+              className="w-full flex items-center justify-center gap-2 p-4 bg-white border-2 border-dashed border-gray-400 rounded-xl hover:border-[var(--banana-blue)] hover:bg-[#F0F8FF] transition-all disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400"
             >
               <Plus size={20} className="text-gray-600" />
               <span className="font-bold text-gray-600">添加新页面</span>

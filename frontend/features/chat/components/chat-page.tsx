@@ -315,11 +315,11 @@ function ChatInterface({
       <div className="flex-1 min-w-0 flex flex-col">
         {messages.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center p-4">
-            <div className="bg-white p-8 rounded-full border-4 border-[var(--doraemon-blue)] shadow-[8px_8px_0px_rgba(0,0,0,1)] mb-6">
-              <BrainCircuit size={64} className="text-[var(--doraemon-blue)]" />
+            <div className="bg-white p-8 rounded-full border-4 border-[var(--banana-blue)] shadow-[8px_8px_0px_rgba(0,0,0,1)] mb-6">
+              <BrainCircuit size={64} className="text-[var(--banana-blue)]" />
             </div>
             <h2 className="text-3xl font-black mb-2 text-gray-900 tracking-tight">
-              Doraemon Agent
+              Banana Lecture
             </h2>
             <p className="text-lg font-medium text-gray-600 mb-8">
               What can I help you with today?
@@ -345,13 +345,13 @@ function ChatInterface({
                     <div
                       className={`px-6 py-4 rounded-2xl max-w-[90%] lg:max-w-[80%] transition-all ${
                         message.role === 'user'
-                          ? 'bg-[var(--doraemon-yellow)] text-gray-900 border-2 border-gray-900 shadow-[4px_4px_0px_rgba(0,0,0,1)] rounded-br-none'
+                          ? 'bg-[var(--banana-yellow)] text-gray-900 border-2 border-gray-900 shadow-[4px_4px_0px_rgba(0,0,0,1)] rounded-br-none'
                           : 'bg-white border-2 border-gray-900 text-gray-900 shadow-[4px_4px_0px_rgba(0,0,0,1)] rounded-bl-none'
                       }`}
                     >
                       <div
                         className={`font-bold text-xs mb-2 uppercase tracking-wide ${
-                          message.role === 'user' ? 'text-gray-700' : 'text-[var(--doraemon-blue)]'
+                          message.role === 'user' ? 'text-gray-700' : 'text-[var(--banana-blue)]'
                         }`}
                       >
                         {message.role === 'user' ? 'You' : 'Agent'}
