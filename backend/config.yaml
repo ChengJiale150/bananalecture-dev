@@ -12,7 +12,7 @@ SERVER:
   PORT: 8000
 
 DATABASE:
-  URL: sqlite+aiosqlite:///data.db
+  URL: sqlite+aiosqlite:///data/data.db
 
 STORAGE:
   DATA_DIR: ./data
