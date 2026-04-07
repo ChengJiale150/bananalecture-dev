@@ -50,7 +50,7 @@ export function SlideViewer({
   const canPlayAudio = Boolean(currentSlide.audioPath);
   const hasDialoguePreview = Boolean(currentSlide.dialogues?.length);
   const hasGeneratedImage = Boolean(currentSlide.imagePath);
-  const hasGeneratedDialogues = Boolean(currentSlide.dialogues?.length);
+  const hasGeneratedDialogues = hasDialoguePreview;
   const hasGeneratedAudio = Boolean(currentSlide.audioPath);
 
   const handleSubmitModifyImage = async () => {
