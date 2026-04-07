@@ -49,6 +49,9 @@ export function SlideViewer({
     Boolean(currentSlide.dialogues?.length) && !isGeneratingAll && !isGeneratingAudio;
   const canPlayAudio = Boolean(currentSlide.audioPath);
   const hasDialoguePreview = Boolean(currentSlide.dialogues?.length);
+  const hasGeneratedImage = Boolean(currentSlide.imagePath);
+  const hasGeneratedDialogues = hasDialoguePreview;
+  const hasGeneratedAudio = Boolean(currentSlide.audioPath);
 
   const handleSubmitModifyImage = async () => {
     const prompt = modifyPrompt.trim();
@@ -151,7 +154,7 @@ export function SlideViewer({
             }`}
           >
             <ImageIcon size={18} />
-            {isGeneratingImage ? '生成中...' : '生成图片'}
+            {isGeneratingImage ? '生成中...' : hasGeneratedImage ? '重新生成图片' : '生成图片'}
           </button>
           <button
             onClick={() => setShowModifyDialog(true)}
@@ -175,7 +178,7 @@ export function SlideViewer({
             }`}
           >
             <FileText size={18} />
-            {isGeneratingDialogues ? '生成中...' : '生成对话'}
+            {isGeneratingDialogues ? '生成中...' : hasGeneratedDialogues ? '重新生成对话' : '生成对话'}
           </button>
           <button
             onClick={handleGenerateAudio}
@@ -187,7 +190,7 @@ export function SlideViewer({
             }`}
           >
             <Volume2 size={18} />
-            {isGeneratingAudio ? '生成中...' : '生成音频'}
+            {isGeneratingAudio ? '生成中...' : hasGeneratedAudio ? '重新生成音频' : '生成音频'}
           </button>
           <button
             onClick={togglePlayAudio}

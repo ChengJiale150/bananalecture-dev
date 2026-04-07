@@ -82,7 +82,6 @@ function ChatInterface({
 
   const [persistedPptPlan, setPersistedPptPlan] = useState(project.pptPlan);
   const [draftPptPlan, setDraftPptPlan] = useState<{ slides: Slide[] } | undefined>();
-  const [mobilePanel, setMobilePanel] = useState<'editor' | 'chat'>('editor');
   const projectTitleRef = useRef(project.title);
   const syncTimerRef = useRef<number | null>(null);
   const latestMessagesRef = useRef<any[]>(project.messages ?? []);
@@ -163,7 +162,6 @@ function ChatInterface({
     const projectMessages = (project.messages ?? []) as PlannerAgentUIMessage[];
 
     setMessages(projectMessages);
-    setMobilePanel('editor');
     latestMessagesRef.current = projectMessages;
     lastSyncedSignatureRef.current = stringifyProjectMessages(projectMessages);
     setPersistedPptPlan(project.pptPlan);
@@ -312,192 +310,171 @@ function ChatInterface({
     };
   }, [messages, status, chatId, commitPptPlan]);
 
-  const editorPanel = (
-    <PPTPlanPreview
-      pptPlan={effectivePptPlan}
-      onUpdateSlide={handlePptPlanSlideUpdate}
-      onAddSlide={handlePptPlanAddSlide}
-      onDeleteSlide={handlePptPlanDeleteSlide}
-      onReorderSlides={handlePptPlanReorderSlides}
-      onSaveAndPreview={handleOpenPreviewFromEditor}
-    />
-  );
-
-  const chatPanel = (
-    <div className="flex h-full flex-1 flex-col bg-[#F0F8FF] xl:min-w-[590px]">
-      <div className="flex-1 overflow-y-auto p-4 scroll-smooth">
+  return (
+    <div className="flex flex-col lg:flex-row h-screen bg-[#F0F8FF]">
+      <div className="flex-1 min-w-0 flex flex-col">
         {messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center p-4">
-            <div className="mb-6 rounded-full border-4 border-[var(--doraemon-blue)] bg-white p-8 shadow-[8px_8px_0px_rgba(0,0,0,1)]">
+          <div className="flex-1 flex flex-col items-center justify-center p-4">
+            <div className="bg-white p-8 rounded-full border-4 border-[var(--doraemon-blue)] shadow-[8px_8px_0px_rgba(0,0,0,1)] mb-6">
               <BrainCircuit size={64} className="text-[var(--doraemon-blue)]" />
             </div>
-            <h2 className="mb-2 text-3xl font-black tracking-tight text-gray-900">Doraemon Agent</h2>
-            <p className="text-center text-lg font-medium text-gray-600">What can I help you with today?</p>
+            <h2 className="text-3xl font-black mb-2 text-gray-900 tracking-tight">
+              Doraemon Agent
+            </h2>
+            <p className="text-lg font-medium text-gray-600 mb-8">
+              What can I help you with today?
+            </p>
+            <div className="w-full max-w-3xl">
+              <ChatInput
+                status={status}
+                onSubmit={handleSendMessage}
+                stop={stop}
+                isCentered={true}
+              />
+            </div>
           </div>
         ) : (
-          <div className="mx-auto max-w-3xl space-y-6 pb-4">
-            {messages.map(message => (
-              <div
-                key={message.id}
-                className={`flex flex-col ${message.role === 'user' ? 'items-end' : 'items-start'}`}
-              >
-                <div
-                  className={`px-6 py-4 rounded-2xl max-w-[90%] lg:max-w-[80%] transition-all ${
-                    message.role === 'user'
-                      ? 'bg-[var(--doraemon-yellow)] text-gray-900 border-2 border-gray-900 shadow-[4px_4px_0px_rgba(0,0,0,1)] rounded-br-none'
-                      : 'bg-white border-2 border-gray-900 text-gray-900 shadow-[4px_4px_0px_rgba(0,0,0,1)] rounded-bl-none'
-                  }`}
-                >
+          <>
+            <div className="flex-1 overflow-y-auto p-4 scroll-smooth">
+              <div className="space-y-6 max-w-3xl mx-auto pb-4">
+                {messages.map(message => (
                   <div
-                    className={`font-bold text-xs mb-2 uppercase tracking-wide ${
-                      message.role === 'user' ? 'text-gray-700' : 'text-[var(--doraemon-blue)]'
-                    }`}
+                    key={message.id}
+                    className={`flex flex-col ${message.role === 'user' ? 'items-end' : 'items-start'}`}
                   >
-                    {message.role === 'user' ? 'You' : 'Agent'}
-                  </div>
-
-                  <div className="space-y-2 overflow-hidden">
-                    {message.parts?.map((part, index) => {
-                      if (!part || typeof part !== 'object') return null;
-                      const partType = (part as any).type;
-                      if (!partType) return null;
-                      switch (partType) {
-                        case 'text': {
-                          const text = (part as { text?: string }).text;
-                          if (typeof text !== 'string') return null;
-                          return (
-                            <div key={index} className="prose prose-sm max-w-none dark:prose-invert">
-                              <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
-                            </div>
-                          );
-                        }
-
-                        case 'reasoning': {
-                          const text = (part as { text?: string }).text;
-                          if (typeof text !== 'string') return null;
-                          return (
-                            <ThinkingBlock
-                              key={index}
-                              content={text}
-                              isComplete={
-                                status !== 'streaming' ||
-                                index < (message.parts?.length ?? 0) - 1 ||
-                                messages.indexOf(message) < messages.length - 1
-                              }
-                            />
-                          );
-                        }
-
-                        case 'step-start':
-                          return (
-                            <div
-                              key={index}
-                              className="flex items-center gap-2 text-xs text-gray-400 my-1 animate-pulse"
-                            >
-                              <BrainCircuit size={12} />
-                              <span>Thinking...</span>
-                            </div>
-                          );
-
-                        case 'tool-create_ppt_plan': {
-                          const p = part as any;
-                          return (
-                            <ToolView
-                              key={index}
-                              invocation={{
-                                toolName: 'create_ppt_plan',
-                                args:
-                                  p.args ||
-                                  p.toolInvocation?.args ||
-                                  p.input ||
-                                  p.toolInvocation?.input,
-                                result:
-                                  p.result ||
-                                  p.toolInvocation?.result ||
-                                  p.output ||
-                                  p.toolInvocation?.output,
-                                state: p.state || p.toolInvocation?.state,
-                                toolCallId: p.toolCallId || p.toolInvocation?.toolCallId || 'unknown',
-                                approval: p.approval || p.toolInvocation?.approval,
-                              }}
-                            />
-                          );
-                        }
-
-                        default:
-                          return null;
-                      }
-                    })}
-                    {!message.parts && (message as any).content && (
-                      <div className="prose prose-sm max-w-none dark:prose-invert">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{(message as any).content}</ReactMarkdown>
+                    <div
+                      className={`px-6 py-4 rounded-2xl max-w-[90%] lg:max-w-[80%] transition-all ${
+                        message.role === 'user'
+                          ? 'bg-[var(--doraemon-yellow)] text-gray-900 border-2 border-gray-900 shadow-[4px_4px_0px_rgba(0,0,0,1)] rounded-br-none'
+                          : 'bg-white border-2 border-gray-900 text-gray-900 shadow-[4px_4px_0px_rgba(0,0,0,1)] rounded-bl-none'
+                      }`}
+                    >
+                      <div
+                        className={`font-bold text-xs mb-2 uppercase tracking-wide ${
+                          message.role === 'user' ? 'text-gray-700' : 'text-[var(--doraemon-blue)]'
+                        }`}
+                      >
+                        {message.role === 'user' ? 'You' : 'Agent'}
                       </div>
-                    )}
+
+                      <div className="space-y-2 overflow-hidden">
+                        {message.parts?.map((part, index) => {
+                          if (!part || typeof part !== 'object') return null;
+                          const partType = (part as any).type;
+                          if (!partType) return null;
+                          switch (partType) {
+                            case 'text': {
+                              const text = (part as { text?: string }).text;
+                              if (typeof text !== 'string') return null;
+                              return (
+                                <div
+                                  key={index}
+                                  className="prose prose-sm max-w-none dark:prose-invert"
+                                >
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+                                </div>
+                              );
+                            }
+
+                            case 'reasoning': {
+                              const text = (part as { text?: string }).text;
+                              if (typeof text !== 'string') return null;
+                              return (
+                                <ThinkingBlock
+                                  key={index}
+                                  content={text}
+                                  isComplete={
+                                    status !== 'streaming' ||
+                                    index < (message.parts?.length ?? 0) - 1 ||
+                                    messages.indexOf(message) < messages.length - 1
+                                  }
+                                />
+                              );
+                            }
+
+                            case 'step-start':
+                              return (
+                                <div
+                                  key={index}
+                                  className="flex items-center gap-2 text-xs text-gray-400 my-1 animate-pulse"
+                                >
+                                  <BrainCircuit size={12} />
+                                  <span>Thinking...</span>
+                                </div>
+                              );
+
+                            case 'tool-create_ppt_plan': {
+                              const p = part as any;
+                              return (
+                                <ToolView
+                                  key={index}
+                                  invocation={{
+                                    toolName: 'create_ppt_plan',
+                                    args:
+                                      p.args ||
+                                      p.toolInvocation?.args ||
+                                      p.input ||
+                                      p.toolInvocation?.input,
+                                    result:
+                                      p.result ||
+                                      p.toolInvocation?.result ||
+                                      p.output ||
+                                      p.toolInvocation?.output,
+                                    state: p.state || p.toolInvocation?.state,
+                                    toolCallId:
+                                      p.toolCallId || p.toolInvocation?.toolCallId || 'unknown',
+                                    approval: p.approval || p.toolInvocation?.approval,
+                                  }}
+                                />
+                              );
+                            }
+
+                            default:
+                              return null;
+                          }
+                        })}
+                        {!message.parts && (message as any).content && (
+                          <div className="prose prose-sm max-w-none dark:prose-invert">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {(message as any).content}
+                            </ReactMarkdown>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ))}
+
+                {status === 'streaming' && (
+                  <div className="flex items-center gap-2 text-gray-400 text-sm ml-4">
+                    <Loader2 size={14} className="animate-spin" />
+                    <span>Agent is working...</span>
+                  </div>
+                )}
               </div>
-            ))}
+            </div>
 
-            {status === 'streaming' && (
-              <div className="ml-4 flex items-center gap-2 text-sm text-gray-400">
-                <Loader2 size={14} className="animate-spin" />
-                <span>Agent is working...</span>
+            <PPTPlanPreview
+              pptPlan={effectivePptPlan}
+              onUpdateSlide={handlePptPlanSlideUpdate}
+              onAddSlide={handlePptPlanAddSlide}
+              onDeleteSlide={handlePptPlanDeleteSlide}
+              onReorderSlides={handlePptPlanReorderSlides}
+              onSaveAndPreview={handleOpenPreviewFromEditor}
+            />
+
+            <div className="border-t border-gray-200 bg-gray-50">
+              <div className="w-full max-w-3xl mx-auto px-4 py-4">
+                <ChatInput
+                  status={status}
+                  onSubmit={handleSendMessage}
+                  stop={stop}
+                  isCentered={false}
+                />
               </div>
-            )}
-          </div>
+            </div>
+          </>
         )}
-      </div>
-
-      <div className="border-t border-gray-200 bg-gray-50">
-        <div className="w-full px-4 py-4">
-          <ChatInput status={status} onSubmit={handleSendMessage} stop={stop} isCentered={false} />
-        </div>
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="h-screen bg-[#F0F8FF]">
-      <div className="hidden h-full overflow-x-auto xl:block">
-        <div className="flex h-full min-w-[1280px]">
-          <div className="w-[56%] min-w-[700px] border-r-2 border-gray-200 p-3">{editorPanel}</div>
-          {chatPanel}
-        </div>
-      </div>
-
-      <div className="relative h-full xl:hidden">
-        {mobilePanel === 'editor' ? (
-          <div className="h-full p-3">{editorPanel}</div>
-        ) : (
-          <div className="h-full">{chatPanel}</div>
-        )}
-
-        <div className="pointer-events-none absolute bottom-4 right-4 z-20">
-          <div className="pointer-events-auto inline-flex rounded-full border-2 border-gray-900 bg-white p-1 shadow-[4px_4px_0px_rgba(0,0,0,1)]">
-            <button
-              type="button"
-              onClick={() => setMobilePanel('editor')}
-              className={`rounded-full px-3 py-1 text-xs font-bold transition-colors ${
-                mobilePanel === 'editor'
-                  ? 'bg-[var(--doraemon-blue)] text-white'
-                  : 'bg-transparent text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              PPT
-            </button>
-            <button
-              type="button"
-              onClick={() => setMobilePanel('chat')}
-              className={`rounded-full px-3 py-1 text-xs font-bold transition-colors ${
-                mobilePanel === 'chat'
-                  ? 'bg-[var(--doraemon-blue)] text-white'
-                  : 'bg-transparent text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              Chat
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
