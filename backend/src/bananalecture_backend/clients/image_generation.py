@@ -13,9 +13,12 @@ if TYPE_CHECKING:
 
 
 IMAGE_API_KEY_NOT_CONFIGURED = "IMAGE_API_KEY is not configured"
+IMAGE_BASE_URL_NOT_CONFIGURED = "IMAGE_GENERATION__BASE_URL is not configured"
 IMAGE_MODEL_LIST_EMPTY = "IMAGE_MODEL_LIST must not be empty"
 IMAGE_PROMPT_EMPTY = "Image prompt must not be empty"
-IMAGE_URL_MISSING = "Image API response is missing data[0].url"
+IMAGE_STATUS_FAILED = "Image generation failed"
+IMAGE_STATUS_VIOLATION = "Image generation violation"
+IMAGE_RESULTS_MISSING = "Image API response is missing results[0].url"
 
 
 class ImageGenerationClient:
@@ -30,6 +33,8 @@ class ImageGenerationClient:
         prompt_text = prompt.strip()
         if not self.settings.API_KEY:
             raise ConfigurationError(IMAGE_API_KEY_NOT_CONFIGURED)
+        if not self.settings.BASE_URL:
+            raise ConfigurationError(IMAGE_BASE_URL_NOT_CONFIGURED)
         if not self.settings.MODEL_LIST:
             raise ConfigurationError(IMAGE_MODEL_LIST_EMPTY)
         if not prompt_text:
@@ -38,7 +43,7 @@ class ImageGenerationClient:
         failures: list[str] = []
         for model in self.settings.MODEL_LIST:
             try:
-                response = await self._post_completion(model, prompt_text, reference_image)
+                response = await self._generate(model, prompt_text, reference_image)
                 image_url = self._extract_image_url(response)
             except (httpx.HTTPError, ExternalServiceError, ValueError) as exc:
                 failures.append(f"{model}: {exc}")
@@ -54,7 +59,7 @@ class ImageGenerationClient:
         error_message = f"Image generation failed for all configured models: {joined_failures}"
         raise ExternalServiceError(error_message)
 
-    async def _post_completion(
+    async def _generate(
         self,
         model: str,
         prompt: str,
@@ -62,13 +67,16 @@ class ImageGenerationClient:
     ) -> dict[str, Any]:
         payload = {
             "model": model,
-            "size": self.settings.GENERATION_SIZE,
             "prompt": prompt,
-            "image": [reference_image] if reference_image else [],
+            "images": [reference_image] if reference_image else [],
+            "aspectRatio": self.settings.ASPECT_RATIO,
+            "imageSize": self.settings.IMAGE_SIZE,
+            "replyType": "json",
         }
+        url = f"{self.settings.BASE_URL}/v1/api/generate"
         async with httpx.AsyncClient(timeout=self.settings.REQUEST_TIMEOUT_SECONDS) as client:
             response = await client.post(
-                self.settings.API_URL,
+                url,
                 headers={
                     "Authorization": f"Bearer {self.settings.API_KEY}",
                     "Content-Type": "application/json",
@@ -102,17 +110,28 @@ class ImageGenerationClient:
         raise httpx.HTTPError(error_message)
 
     def _extract_image_url(self, response: dict[str, Any]) -> str:
-        data = response.get("data")
-        if not isinstance(data, Sequence) or isinstance(data, str) or not data:
-            raise ExternalServiceError(IMAGE_URL_MISSING)
+        status = response.get("status")
+        if status == "failed":
+            error = response.get("error") or IMAGE_STATUS_FAILED
+            raise ExternalServiceError(error)
+        if status == "violation":
+            error = response.get("error") or IMAGE_STATUS_VIOLATION
+            raise ExternalServiceError(error)
+        if status != "succeeded":
+            error = response.get("error") or f"Unexpected image generation status: {status}"
+            raise ExternalServiceError(error)
 
-        first_item = data[0]
+        results = response.get("results")
+        if not isinstance(results, Sequence) or isinstance(results, str) or not results:
+            raise ExternalServiceError(IMAGE_RESULTS_MISSING)
+
+        first_item = results[0]
         if not isinstance(first_item, dict):
-            raise ExternalServiceError(IMAGE_URL_MISSING)
+            raise ExternalServiceError(IMAGE_RESULTS_MISSING)
 
         image_url = first_item.get("url")
         if not isinstance(image_url, str) or not image_url:
-            raise ExternalServiceError(IMAGE_URL_MISSING)
+            raise ExternalServiceError(IMAGE_RESULTS_MISSING)
         return image_url
 
 

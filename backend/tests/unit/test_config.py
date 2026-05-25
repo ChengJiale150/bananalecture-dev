@@ -19,12 +19,13 @@ def test_settings_load_from_yaml_and_env_override(tmp_path: Path) -> None:
                 "DATABASE:",
                 "  URL: sqlite+aiosqlite:///./yaml.db",
                 "IMAGE_GENERATION:",
-                "  API_URL: https://yaml.example/v1/chat/completions",
+                "  BASE_URL: https://yaml.example",
                 "  API_KEY: yaml-key",
                 "  MODEL_LIST:",
                 "    - yaml-model",
                 "  REQUEST_TIMEOUT_SECONDS: 12.5",
-                '  GENERATION_SIZE: "4:3"',
+                '  ASPECT_RATIO: "4:3"',
+                '  IMAGE_SIZE: "2K"',
                 "  DOWNLOAD_RETRIES: 4",
                 "  DOWNLOAD_RETRY_DELAY_SECONDS: 0.25",
                 "IMAGE_DELIVERY:",
@@ -102,11 +103,12 @@ def test_settings_load_from_yaml_and_env_override(tmp_path: Path) -> None:
     assert settings.APP.NAME == "yaml-project"
     assert settings.SERVER.PORT == 9000
     assert settings.DATABASE.URL == "sqlite+aiosqlite:///./yaml.db"
-    assert settings.IMAGE_GENERATION.API_URL == "https://yaml.example/v1/chat/completions"
+    assert settings.IMAGE_GENERATION.BASE_URL == "https://yaml.example"
     assert settings.IMAGE_GENERATION.API_KEY == "env-key"
     assert settings.IMAGE_GENERATION.MODEL_LIST == ["env-model-1", "env-model-2"]
     assert settings.IMAGE_GENERATION.REQUEST_TIMEOUT_SECONDS == 12.5
-    assert settings.IMAGE_GENERATION.GENERATION_SIZE == "4:3"
+    assert settings.IMAGE_GENERATION.ASPECT_RATIO == "4:3"
+    assert settings.IMAGE_GENERATION.IMAGE_SIZE == "2K"
     assert settings.IMAGE_GENERATION.DOWNLOAD_RETRIES == 4
     assert settings.IMAGE_GENERATION.DOWNLOAD_RETRY_DELAY_SECONDS == 0.25
     assert settings.IMAGE_DELIVERY.MAX_WIDTH == 1440

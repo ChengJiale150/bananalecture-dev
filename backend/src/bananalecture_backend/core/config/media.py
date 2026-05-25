@@ -6,17 +6,19 @@ from pydantic import BaseModel, Field
 class ImageGenerationSettings(BaseModel):
     """Settings for the external image generation service."""
 
-    API_URL: str = "https://api.chatfire.site/v1/images/generations"
+    BASE_URL: str = "https://grsai.dakka.com.cn"
     API_KEY: str | None = None
     MODEL_LIST: list[str] = Field(
         default_factory=lambda: [
             "nano-banana-2",
+            "nano-banana-fast",
             "nano-banana-pro",
             "nano-banana",
         ]
     )
-    REQUEST_TIMEOUT_SECONDS: float = Field(default=30.0, gt=0.0)
-    GENERATION_SIZE: str = "16:9"
+    REQUEST_TIMEOUT_SECONDS: float = Field(default=240.0, gt=0.0)
+    ASPECT_RATIO: str = "16:9"
+    IMAGE_SIZE: str = "2K"
     DOWNLOAD_RETRIES: int = Field(default=3, ge=0)
     DOWNLOAD_RETRY_DELAY_SECONDS: float = Field(default=0.5, ge=0.0)
 

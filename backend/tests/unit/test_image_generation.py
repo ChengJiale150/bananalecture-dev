@@ -21,7 +21,7 @@ class StubImageGenerationClient(ImageGenerationClient):
         self.requested_models: list[str] = []
         self.downloaded_urls: list[str] = []
 
-    async def _post_completion(
+    async def _generate(
         self,
         model: str,
         prompt: str,
@@ -48,35 +48,94 @@ async def test_image_client_falls_back_to_next_model() -> None:
     settings = Settings(
         IMAGE_GENERATION=ImageGenerationSettings(
             API_KEY="test-key",
-            MODEL_LIST=["nano-banana-2", "nano-banana-pro", "nano-banana"],
+            MODEL_LIST=["nano-banana-2", "nano-banana-fast", "nano-banana-pro", "nano-banana"],
         ),
     )
     client = StubImageGenerationClient(
         settings,
         [
             ExternalServiceError("first failed"),
-            {"data": [{"url": "https://example.com/generated.png"}], "created": 1},
+            {
+                "id": "task-1",
+                "status": "succeeded",
+                "results": [{"url": "https://example.com/generated.png"}],
+                "progress": 100,
+            },
         ],
     )
 
     image_bytes = await client.generate_image("Generate a chart")
 
     assert image_bytes == b"fake-image"
-    assert client.requested_models == ["nano-banana-2", "nano-banana-pro"]
+    assert client.requested_models == ["nano-banana-2", "nano-banana-fast"]
     assert client.downloaded_urls == ["https://example.com/generated.png"]
 
 
 @pytest.mark.asyncio
-async def test_image_client_raises_when_response_is_missing_url() -> None:
+async def test_image_client_raises_when_results_is_missing_url() -> None:
     settings = Settings(
         IMAGE_GENERATION=ImageGenerationSettings(
             API_KEY="test-key",
             MODEL_LIST=["nano-banana-2"],
         )
     )
-    client = StubImageGenerationClient(settings, [{"data": [{}], "created": 1}])
+    client = StubImageGenerationClient(
+        settings,
+        [{"id": "task-1", "status": "succeeded", "results": [{}], "progress": 100}],
+    )
 
-    with pytest.raises(ExternalServiceError, match="missing data\\[0\\]\\.url"):
+    with pytest.raises(ExternalServiceError, match=r"missing results\[0\]\.url"):
+        await client.generate_image("Generate a chart")
+
+
+@pytest.mark.asyncio
+async def test_image_client_raises_when_results_is_empty() -> None:
+    settings = Settings(
+        IMAGE_GENERATION=ImageGenerationSettings(
+            API_KEY="test-key",
+            MODEL_LIST=["nano-banana-2"],
+        )
+    )
+    client = StubImageGenerationClient(
+        settings,
+        [{"id": "task-1", "status": "succeeded", "results": [], "progress": 100}],
+    )
+
+    with pytest.raises(ExternalServiceError, match=r"missing results\[0\]\.url"):
+        await client.generate_image("Generate a chart")
+
+
+@pytest.mark.asyncio
+async def test_image_client_raises_on_failed_status() -> None:
+    settings = Settings(
+        IMAGE_GENERATION=ImageGenerationSettings(
+            API_KEY="test-key",
+            MODEL_LIST=["nano-banana-2"],
+        )
+    )
+    client = StubImageGenerationClient(
+        settings,
+        [{"id": "task-1", "status": "failed", "error": "generate failed"}],
+    )
+
+    with pytest.raises(ExternalServiceError, match="generate failed"):
+        await client.generate_image("Generate a chart")
+
+
+@pytest.mark.asyncio
+async def test_image_client_raises_on_violation_status() -> None:
+    settings = Settings(
+        IMAGE_GENERATION=ImageGenerationSettings(
+            API_KEY="test-key",
+            MODEL_LIST=["nano-banana-2"],
+        )
+    )
+    client = StubImageGenerationClient(
+        settings,
+        [{"id": "task-1", "status": "violation", "error": "content violation"}],
+    )
+
+    with pytest.raises(ExternalServiceError, match="content violation"):
         await client.generate_image("Generate a chart")
 
 
@@ -85,15 +144,25 @@ async def test_image_client_does_not_fallback_on_non_retryable_error() -> None:
     settings = Settings(
         IMAGE_GENERATION=ImageGenerationSettings(
             API_KEY="test-key",
-            MODEL_LIST=["nano-banana-2", "nano-banana-pro", "nano-banana"],
+            MODEL_LIST=["nano-banana-2", "nano-banana-fast", "nano-banana-pro", "nano-banana"],
         ),
     )
     client = StubImageGenerationClient(
         settings,
         [
             AssertionError("unexpected request payload"),
-            {"data": [{"url": "https://example.com/second.png"}], "created": 1},
-            {"data": [{"url": "https://example.com/third.png"}], "created": 1},
+            {
+                "id": "task-2",
+                "status": "succeeded",
+                "results": [{"url": "https://example.com/second.png"}],
+                "progress": 100,
+            },
+            {
+                "id": "task-3",
+                "status": "succeeded",
+                "results": [{"url": "https://example.com/third.png"}],
+                "progress": 100,
+            },
         ],
     )
 
@@ -109,14 +178,21 @@ async def test_image_client_retries_download_without_falling_back_to_next_model(
     settings = Settings(
         IMAGE_GENERATION=ImageGenerationSettings(
             API_KEY="test-key",
-            MODEL_LIST=["nano-banana-2", "nano-banana-pro", "nano-banana"],
+            MODEL_LIST=["nano-banana-2", "nano-banana-fast", "nano-banana-pro", "nano-banana"],
             DOWNLOAD_RETRIES=2,
             DOWNLOAD_RETRY_DELAY_SECONDS=0.0,
         ),
     )
     client = StubImageGenerationClient(
         settings,
-        [{"data": [{"url": "https://example.com/generated.png"}], "created": 1}],
+        [
+            {
+                "id": "task-1",
+                "status": "succeeded",
+                "results": [{"url": "https://example.com/generated.png"}],
+                "progress": 100,
+            }
+        ],
         [
             httpx.ReadTimeout("cdn not ready"),
             b"fake-image",
@@ -138,14 +214,21 @@ async def test_image_client_raises_when_download_retries_exhausted_without_fallb
     settings = Settings(
         IMAGE_GENERATION=ImageGenerationSettings(
             API_KEY="test-key",
-            MODEL_LIST=["nano-banana-2", "nano-banana-pro", "nano-banana"],
+            MODEL_LIST=["nano-banana-2", "nano-banana-fast", "nano-banana-pro", "nano-banana"],
             DOWNLOAD_RETRIES=2,
             DOWNLOAD_RETRY_DELAY_SECONDS=0.0,
         ),
     )
     client = StubImageGenerationClient(
         settings,
-        [{"data": [{"url": "https://example.com/generated.png"}], "created": 1}],
+        [
+            {
+                "id": "task-1",
+                "status": "succeeded",
+                "results": [{"url": "https://example.com/generated.png"}],
+                "progress": 100,
+            }
+        ],
         [
             httpx.ReadTimeout("cdn not ready"),
             httpx.ReadTimeout("cdn not ready"),
