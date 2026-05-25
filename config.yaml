@@ -26,13 +26,14 @@ TASKS:
   VIDEO_TASK_DELAY_SECONDS: 0.2
 
 IMAGE_GENERATION:
-  API_URL: https://api.chatfire.site/v1/images/generations
+  BASE_URL: https://grsai.dakka.com.cn
   API_KEY: null
   MODEL_LIST:
   - nano-banana-2
   - nano-banana-pro
-  REQUEST_TIMEOUT_SECONDS: 300.0
-  GENERATION_SIZE: "16:9"
+  REQUEST_TIMEOUT_SECONDS: 240.0
+  ASPECT_RATIO: "16:9"
+  IMAGE_SIZE: "2K"
   DOWNLOAD_RETRIES: 3
   DOWNLOAD_RETRY_DELAY_SECONDS: 0.5
 
