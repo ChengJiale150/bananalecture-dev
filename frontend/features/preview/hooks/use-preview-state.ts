@@ -418,7 +418,7 @@ export function usePreviewState(
         }
 
         window.clearInterval(intervalId);
-        await refreshProject();
+        await refreshProject({ force: true });
 
         if (nextTask.status === 'completed') {
           await completeGenerationSession(updatedSession, nextTask);
