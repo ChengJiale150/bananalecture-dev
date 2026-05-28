@@ -4,7 +4,7 @@ from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from typing import Annotated, cast
 
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from bananalecture_backend.application.ports import (
@@ -81,6 +81,23 @@ SettingsDep = Annotated[Settings, Depends(get_settings)]
 RuntimeDep = Annotated[BackgroundTaskRunner, Depends(get_runtime)]
 StorageDep = Annotated[StorageService, Depends(get_storage)]
 SessionFactoryDep = Annotated[async_sessionmaker[AsyncSession], Depends(get_session_factory)]
+
+
+def get_current_user_id(request: Request) -> str:
+    """Extract user identity from X-User-Id header.
+
+    Raises 401 if the header is missing. No fallback to a default user.
+    """
+    user_id = request.headers.get("X-User-Id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing X-User-Id header",
+        )
+    return user_id
+
+
+CurrentUserIdDep = Annotated[str, Depends(get_current_user_id)]
 
 
 @dataclass

@@ -14,7 +14,7 @@ from tests.conftest import FakeImageGenerationClient
 def _create_project_with_slide(client: TestClient, settings: Settings, content: str) -> tuple[str, str]:
     project_response = client.post(
         f"{settings.API.V1_STR}/projects",
-        json={"name": "Image test", "user_id": "admin"},
+        json={"name": "Image test"},
     )
     assert project_response.status_code == status.HTTP_201_CREATED
     project_id = project_response.json()["data"]["id"]

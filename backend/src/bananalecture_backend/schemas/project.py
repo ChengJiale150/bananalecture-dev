@@ -11,7 +11,6 @@ class CreateProjectRequest(APIModel):
     """Payload for project creation."""
 
     name: str = Field(min_length=1, max_length=255)
-    user_id: str = Field(default="admin", min_length=1, max_length=255)
 
 
 class UpdateProjectRequest(APIModel):

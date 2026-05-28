@@ -21,7 +21,7 @@ from bananalecture_backend.services.resources import (
 
 
 async def _create_project(db_session, *, name: str = "Deck", user_id: str = "admin") -> str:
-    project = await ProjectResourceService(db_session).create_project(CreateProjectRequest(name=name, user_id=user_id))
+    project = await ProjectResourceService(db_session).create_project(user_id, CreateProjectRequest(name=name))
     return project.id
 
 

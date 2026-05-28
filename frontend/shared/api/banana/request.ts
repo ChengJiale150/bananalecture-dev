@@ -23,6 +23,7 @@ export interface BananaLectureRequestOptions extends Omit<RequestInit, 'body'> {
 export interface BananaLectureApiClientOptions {
   baseUrl?: string;
   fetch?: typeof fetch;
+  getHeaders?: () => Record<string, string>;
 }
 
 function isAbsoluteUrl(value: string) {
@@ -75,7 +76,8 @@ export function createBananaLectureRequester(options: BananaLectureApiClientOpti
 
   async function request(path: string, init: BananaLectureRequestOptions = {}) {
     const { query, body, headers, ...rest } = init;
-    const finalHeaders = new Headers(headers);
+    const authHeaders = options.getHeaders ? options.getHeaders() : {};
+    const finalHeaders = new Headers({ ...authHeaders, ...headers });
     const normalizedBody = normalizeBody(body);
 
     if (

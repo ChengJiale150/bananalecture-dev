@@ -11,6 +11,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  LogOut,
+  RefreshCw,
 } from 'lucide-react';
 import { useMemo, useState, type MouseEvent } from 'react';
 import { getVisiblePaginationPages } from '@/features/projects/utils';
@@ -28,11 +30,23 @@ interface SidebarProps {
   totalPages: number;
   isLoadingProjects: boolean;
   isLoadingProjectDetail: boolean;
+  currentUserId: string;
   onSelect: (id: string) => void;
   onPageChange: (page: number) => void;
   onNew: () => void;
   onDelete: (id: string) => void;
   onRename: (id: string, newTitle: string) => Promise<void>;
+}
+
+const USER_ID_KEY = 'banana_user_id';
+const SHORT_ID_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
+
+function generateShortId(length = 8): string {
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += SHORT_ID_ALPHABET[Math.floor(Math.random() * SHORT_ID_ALPHABET.length)];
+  }
+  return result;
 }
 
 export default function Sidebar({
@@ -42,6 +56,7 @@ export default function Sidebar({
   totalPages,
   isLoadingProjects,
   isLoadingProjectDetail,
+  currentUserId,
   onSelect,
   onPageChange,
   onNew,
@@ -52,6 +67,8 @@ export default function Sidebar({
   const [editTitle, setEditTitle] = useState('');
   const [isExpanded, setIsExpanded] = useState(true);
   const [isRenaming, setIsRenaming] = useState(false);
+  const [showUserPanel, setShowUserPanel] = useState(false);
+  const [switchInput, setSwitchInput] = useState('');
 
   const visiblePages = useMemo(
     () => getVisiblePaginationPages(currentPage, totalPages),
@@ -298,18 +315,79 @@ export default function Sidebar({
       )}
 
       <div
-        className={`${isExpanded ? 'p-4' : 'p-2'} border-t-4 border-gray-800 bg-gray-50 text-gray-900`}
+        className={`${isExpanded ? 'p-4' : 'p-2'} border-t-4 border-gray-800 bg-gray-50 text-gray-900 relative`}
       >
         <button
+          onClick={() => setShowUserPanel(!showUserPanel)}
           className={`w-full flex items-center ${isExpanded ? 'justify-between' : 'justify-center'} p-3 rounded-xl hover:bg-white border-2 border-transparent hover:border-gray-300 transition-all shadow-sm`}
         >
           <span className={`flex items-center ${isExpanded ? 'gap-3' : ''} font-bold text-sm`}>
             <div className="w-8 h-8 bg-[var(--banana-blue)] rounded-full flex items-center justify-center">
               <User size={16} className="text-white" />
             </div>
-            {isExpanded && <span>User</span>}
+            {isExpanded && (
+              <span className="font-mono text-sm" title={currentUserId}>
+                {currentUserId}
+              </span>
+            )}
           </span>
         </button>
+
+        {showUserPanel && isExpanded && (
+          <div className="absolute bottom-full mb-2 left-2 right-2 bg-white border-2 border-gray-900 rounded-xl p-3 shadow-[4px_4px_0px_rgba(0,0,0,1)] z-50">
+            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+              当前用户
+            </div>
+            <div className="font-mono text-sm font-bold text-gray-900 mb-3 break-all">
+              {currentUserId}
+            </div>
+
+            <button
+              onClick={() => {
+                const newId = generateShortId();
+                localStorage.setItem(USER_ID_KEY, newId);
+                window.location.reload();
+              }}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 mb-2 text-sm font-bold text-white bg-[var(--banana-blue)] rounded-lg border-2 border-gray-900 hover:brightness-110 transition-all"
+            >
+              <RefreshCw size={14} />
+              生成新用户
+            </button>
+
+            <div className="border-t-2 border-gray-100 my-2" />
+
+            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+              切换到已有用户
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={switchInput}
+                onChange={e => setSwitchInput(e.target.value)}
+                placeholder="输入 user_id"
+                className="flex-1 px-2 py-1.5 text-sm border-2 border-gray-300 rounded-lg outline-none focus:border-[var(--banana-blue)] font-mono"
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && switchInput.trim()) {
+                    localStorage.setItem(USER_ID_KEY, switchInput.trim());
+                    window.location.reload();
+                  }
+                }}
+              />
+              <button
+                onClick={() => {
+                  if (switchInput.trim()) {
+                    localStorage.setItem(USER_ID_KEY, switchInput.trim());
+                    window.location.reload();
+                  }
+                }}
+                disabled={!switchInput.trim()}
+                className="px-3 py-1.5 text-sm font-bold text-gray-700 bg-gray-100 rounded-lg border-2 border-gray-900 hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                切换
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <button

@@ -29,13 +29,13 @@ def test_full_bananalecture_workflow(client: TestClient, test_settings: Settings
     """Exercise the main BananaLecture API workflow."""
     project_response = client.post(
         f"{test_settings.API.V1_STR}/projects",
-        json={"name": "Physics lesson", "user_id": "admin"},
+        json={"name": "Physics lesson"},
     )
     assert project_response.status_code == status.HTTP_201_CREATED
     project = project_response.json()["data"]
     project_id = project["id"]
 
-    list_response = client.get(f"{test_settings.API.V1_STR}/admin/projects")
+    list_response = client.get(f"{test_settings.API.V1_STR}/projects")
     assert list_response.status_code == status.HTTP_200_OK
     assert list_response.json()["data"]["pagination"]["total"] == 1
 
@@ -216,7 +216,7 @@ def test_video_generation_returns_error_when_slide_assets_are_missing(
 ) -> None:
     project_response = client.post(
         f"{test_settings.API.V1_STR}/projects",
-        json={"name": "Physics lesson", "user_id": "admin"},
+        json={"name": "Physics lesson"},
     )
     assert project_response.status_code == status.HTTP_201_CREATED
     project_id = project_response.json()["data"]["id"]

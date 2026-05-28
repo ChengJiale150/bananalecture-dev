@@ -6,7 +6,7 @@ from bananalecture_backend.core.config import Settings
 
 
 def _create_project(client: TestClient, settings: Settings, name: str = "Physics lesson") -> str:
-    response = client.post(f"{settings.API.V1_STR}/projects", json={"name": name, "user_id": "admin"})
+    response = client.post(f"{settings.API.V1_STR}/projects", json={"name": name})
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()["data"]["id"]
 

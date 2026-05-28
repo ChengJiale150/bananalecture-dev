@@ -33,10 +33,14 @@ import {
   stringifyProjectMessages,
 } from '@/features/projects/utils';
 
-const DEFAULT_USER_ID = 'admin';
-
 function getApiClient() {
-  return createBananaLectureApiClient();
+  return createBananaLectureApiClient({
+    getHeaders: (): Record<string, string> => {
+      if (typeof localStorage === 'undefined') return {};
+      const userId = localStorage.getItem('banana_user_id');
+      return userId ? { 'X-User-Id': userId } : {};
+    },
+  });
 }
 
 function parseApiTimestamp(value: string): number {
@@ -148,7 +152,7 @@ export function createDialogueUpdateInput(dialogue: Dialogue): UpdateDialogueReq
 
 export async function listProjects(query: ListProjectsQuery = {}): Promise<ProjectListPage> {
   const apiClient = getApiClient();
-  const response = await apiClient.listProjects(DEFAULT_USER_ID, {
+  const response = await apiClient.listProjects({
     page: query.page ?? DEFAULT_PROJECT_LIST_PAGE,
     page_size: query.page_size ?? DEFAULT_PROJECT_LIST_PAGE_SIZE,
     sort_by: 'updated_at',
@@ -168,10 +172,7 @@ export async function listProjects(query: ListProjectsQuery = {}): Promise<Proje
 
 export async function createProject(payload: Pick<CreateProjectRequest, 'name'>) {
   const apiClient = getApiClient();
-  const response = await apiClient.createProject({
-    user_id: DEFAULT_USER_ID,
-    name: payload.name,
-  });
+  const response = await apiClient.createProject({ name: payload.name });
 
   return response.data.id;
 }

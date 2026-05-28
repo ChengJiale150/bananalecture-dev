@@ -198,7 +198,7 @@ def client(
     app.dependency_overrides[deps.get_audio_synthesizer] = lambda: fake_audio_client
     app.dependency_overrides[deps.get_audio_processor] = lambda: fake_audio_processing
     app.dependency_overrides[deps.get_video_renderer] = lambda: fake_video_processing
-    with TestClient(app) as test_client:
+    with TestClient(app, headers={"X-User-Id": "test-user"}) as test_client:
         yield test_client
 
 

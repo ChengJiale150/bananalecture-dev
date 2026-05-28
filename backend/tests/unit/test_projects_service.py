@@ -14,7 +14,7 @@ async def _create_project(
     name: str,
     user_id: str = "admin",
 ) -> str:
-    project = await service.create_project(CreateProjectRequest(name=name, user_id=user_id))
+    project = await service.create_project(user_id, CreateProjectRequest(name=name))
     return project.id
 
 
@@ -23,7 +23,7 @@ async def _create_project(
 async def test_create_project_persists_expected_defaults(db_session) -> None:
     service = ProjectResourceService(db_session)
 
-    project = await service.create_project(CreateProjectRequest(name="Physics lesson", user_id="teacher-1"))
+    project = await service.create_project("teacher-1", CreateProjectRequest(name="Physics lesson"))
 
     stored = await service.projects.get(project.id)
     assert stored is not None

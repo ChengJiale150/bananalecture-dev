@@ -514,6 +514,26 @@ function ChatInterface({
   );
 }
 
+const USER_ID_KEY = 'banana_user_id';
+const SHORT_ID_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
+
+function generateShortId(length = 8): string {
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += SHORT_ID_ALPHABET[Math.floor(Math.random() * SHORT_ID_ALPHABET.length)];
+  }
+  return result;
+}
+
+function ensureUserId(): string {
+  let userId = localStorage.getItem(USER_ID_KEY);
+  if (!userId) {
+    userId = generateShortId();
+    localStorage.setItem(USER_ID_KEY, userId);
+  }
+  return userId;
+}
+
 export default function ChatPage() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [projectPagination, setProjectPagination] =
@@ -522,6 +542,11 @@ export default function ChatPage() {
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [isLoadingProjectDetail, setIsLoadingProjectDetail] = useState(false);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState('');
+
+  useEffect(() => {
+    setCurrentUserId(ensureUserId());
+  }, []);
 
   const loadProjectsPage = useCallback(async (page = DEFAULT_PROJECT_LIST_PAGE) => {
     setIsLoadingProjects(true);
@@ -682,6 +707,7 @@ export default function ChatPage() {
         totalPages={projectPagination.totalPages}
         isLoadingProjects={isLoadingProjects}
         isLoadingProjectDetail={isLoadingProjectDetail}
+        currentUserId={currentUserId}
         onSelect={handleSelectProject}
         onPageChange={handlePageChange}
         onNew={handleNewProject}

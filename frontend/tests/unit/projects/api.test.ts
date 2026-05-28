@@ -46,7 +46,7 @@ test('listProjects requests paginated data and maps pagination fields', async ()
     assert.equal((calls[0].init?.method ?? 'GET').toUpperCase(), 'GET');
 
     const url = String(calls[0].input);
-    assert.match(url, /\/api\/v1\/admin\/projects/);
+    assert.match(url, /\/api\/v1\/projects/);
     assert.match(url, /page=2/);
     assert.match(url, /page_size=10/);
     assert.match(url, /sort_by=updated_at/);

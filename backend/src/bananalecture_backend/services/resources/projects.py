@@ -30,12 +30,12 @@ class ProjectResourceService:
         self.projects = ProjectRepository(session)
         self.slides = SlideRepository(session)
 
-    async def create_project(self, request: CreateProjectRequest) -> ProjectSummary:
+    async def create_project(self, user_id: str, request: CreateProjectRequest) -> ProjectSummary:
         timestamp = utc_now()
 
         project = ProjectModel(
             id=new_id(),
-            user_id=request.user_id,
+            user_id=user_id,
             name=request.name,
             messages=None,
             video_path=None,

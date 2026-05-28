@@ -93,9 +93,7 @@ def _webp_bytes(width: int, height: int) -> bytes:
 
 
 async def _create_project_and_slide(db_session, slide_type: SlideType = SlideType.CONTENT) -> tuple[str, str]:
-    project = await ProjectResourceService(db_session).create_project(
-        CreateProjectRequest(name="Deck", user_id="admin")
-    )
+    project = await ProjectResourceService(db_session).create_project("admin", CreateProjectRequest(name="Deck"))
     slide = await SlideResourceService(db_session).add_slide(
         project.id,
         SlideCreate(type=slide_type, title="Slide", description="Desc", content="Body"),

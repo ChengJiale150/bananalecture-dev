@@ -41,11 +41,8 @@ export function createBananaLectureApiClient(options: BananaLectureApiClientOpti
       return requester.requestJson<ProjectDTO>('/projects', { method: 'POST', body: payload });
     },
 
-    listProjects(
-      userId: string,
-      query?: ListProjectsQuery
-    ): Promise<ApiResponse<ProjectListDataDTO>> {
-      return requester.requestJson<ProjectListDataDTO>(`/${userId}/projects`, {
+    listProjects(query?: ListProjectsQuery): Promise<ApiResponse<ProjectListDataDTO>> {
+      return requester.requestJson<ProjectListDataDTO>('/projects', {
         method: 'GET',
         query: query as QueryParams | undefined,
       });

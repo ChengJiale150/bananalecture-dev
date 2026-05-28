@@ -15,7 +15,7 @@ def test_dialogue_generation_uses_previous_slide_context(
 ) -> None:
     project_response = client.post(
         f"{test_settings.API.V1_STR}/projects",
-        json={"name": "Physics lesson", "user_id": "admin"},
+        json={"name": "Physics lesson"},
     )
     project_id = project_response.json()["data"]["id"]
 
@@ -66,7 +66,7 @@ def test_dialogue_generation_ignores_missing_image_file(
 ) -> None:
     project_response = client.post(
         f"{test_settings.API.V1_STR}/projects",
-        json={"name": "Physics lesson", "user_id": "admin"},
+        json={"name": "Physics lesson"},
     )
     project_id = project_response.json()["data"]["id"]
 
@@ -105,7 +105,7 @@ def test_dialogue_generation_passes_image_when_present(
 ) -> None:
     project_response = client.post(
         f"{test_settings.API.V1_STR}/projects",
-        json={"name": "Physics lesson", "user_id": "admin"},
+        json={"name": "Physics lesson"},
     )
     project_id = project_response.json()["data"]["id"]
 
