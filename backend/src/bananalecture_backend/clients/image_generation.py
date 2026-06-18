@@ -7,10 +7,12 @@ from typing import TYPE_CHECKING, Any, cast
 import httpx
 
 from bananalecture_backend.core.errors import ConfigurationError, ExternalServiceError
+from bananalecture_backend.core.logging_config import get_global_logger
 
 if TYPE_CHECKING:
     from bananalecture_backend.core.config import Settings
 
+global_logger = get_global_logger()
 
 IMAGE_API_KEY_NOT_CONFIGURED = "IMAGE_API_KEY is not configured"
 IMAGE_BASE_URL_NOT_CONFIGURED = "IMAGE_GENERATION__BASE_URL is not configured"
@@ -40,12 +42,19 @@ class ImageGenerationClient:
         if not prompt_text:
             raise ExternalServiceError(IMAGE_PROMPT_EMPTY)
 
+        global_logger.bind(
+            model_list=list(self.settings.MODEL_LIST),
+            prompt_length=len(prompt_text),
+            has_reference=reference_image is not None,
+        ).info("external_image_request")
+
         failures: list[str] = []
         for model in self.settings.MODEL_LIST:
             try:
                 response = await self._generate(model, prompt_text, reference_image)
                 image_url = self._extract_image_url(response)
             except (httpx.HTTPError, ExternalServiceError, ValueError) as exc:
+                global_logger.bind(model=model, error=str(exc)).warning("external_image_retry")
                 failures.append(f"{model}: {exc}")
                 continue
 
@@ -53,10 +62,12 @@ class ImageGenerationClient:
                 return await self._download_image_with_retries(model, image_url)
             except httpx.HTTPError as exc:
                 error_message = f"Image download failed after generation succeeded for model {model}: {exc}"
+                global_logger.bind(model=model, error=str(exc)).error("external_image_download_failed")
                 raise ExternalServiceError(error_message) from exc
 
         joined_failures = "; ".join(failures)
         error_message = f"Image generation failed for all configured models: {joined_failures}"
+        global_logger.bind(failures=failures).error("external_image_failed")
         raise ExternalServiceError(error_message)
 
     async def _generate(

@@ -4,10 +4,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 
-from bananalecture_backend.api.v1.deps import CurrentUserIdDep, ProjectResourceServiceDep
+from bananalecture_backend.api.v1.deps import CurrentUserIdDep, ProjectResourceServiceDep, SettingsDep, StorageDep
+from bananalecture_backend.core.logging_config import get_global_logger, get_project_logger, remove_project_sink
 from bananalecture_backend.schemas.project import CreateProjectRequest, UpdateProjectRequest
 
 router = APIRouter()
+global_logger = get_global_logger()
 
 PageQuery = Annotated[int, Query(ge=1)]
 PageSizeQuery = Annotated[int, Query(ge=1, le=100)]
@@ -20,9 +22,16 @@ async def create_project(
     request: CreateProjectRequest,
     service: ProjectResourceServiceDep,
     current_user_id: CurrentUserIdDep,
+    settings: SettingsDep,
 ) -> dict[str, object]:
     """Create a project."""
     project = await service.create_project(current_user_id, request)
+    global_logger.bind(
+        project_id=project.id,
+        user_id=current_user_id,
+        name=project.name,
+    ).info("project_created")
+    get_project_logger(project.id, settings.STORAGE.DATA_DIR).info("project_created")
     return {"code": status.HTTP_201_CREATED, "message": "项目创建成功", "data": project.model_dump()}
 
 
@@ -62,9 +71,17 @@ async def update_project(
     project_id: str,
     request: UpdateProjectRequest,
     service: ProjectResourceServiceDep,
+    current_user_id: CurrentUserIdDep,
+    settings: SettingsDep,
 ) -> dict[str, object]:
     """Update project metadata."""
     updated = await service.update_project(project_id, request)
+    global_logger.bind(
+        project_id=project_id,
+        user_id=current_user_id,
+        name=request.name,
+    ).info("project_updated")
+    get_project_logger(project_id, settings.STORAGE.DATA_DIR).info("project_updated")
     return {"code": status.HTTP_200_OK, "message": "项目更新成功", "data": updated.model_dump()}
 
 
@@ -72,7 +89,15 @@ async def update_project(
 async def delete_project(
     project_id: str,
     service: ProjectResourceServiceDep,
+    current_user_id: CurrentUserIdDep,
+    storage: StorageDep,
 ) -> dict[str, object]:
     """Delete a project."""
     await service.delete_project(project_id)
+    remove_project_sink(project_id)
+    await storage.delete_project_files(project_id)
+    global_logger.bind(
+        project_id=project_id,
+        user_id=current_user_id,
+    ).info("project_deleted")
     return {"code": status.HTTP_200_OK, "message": "项目删除成功", "data": None}

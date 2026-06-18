@@ -1,6 +1,16 @@
 from fastapi import APIRouter
 
-from bananalecture_backend.api.v1.endpoints import audio, base, dialogues, image, projects, slides, tasks, video
+from bananalecture_backend.api.v1.endpoints import (
+    audio,
+    base,
+    dialogues,
+    image,
+    projects,
+    slides,
+    system_logs,
+    tasks,
+    video,
+)
 
 api_router = APIRouter()
 api_router.include_router(base.router, tags=["base"])
@@ -11,3 +21,4 @@ api_router.include_router(image.router, tags=["image"])
 api_router.include_router(audio.router, tags=["audio"])
 api_router.include_router(video.router, tags=["video"])
 api_router.include_router(tasks.router, tags=["tasks"])
+api_router.include_router(system_logs.router, tags=["system"])

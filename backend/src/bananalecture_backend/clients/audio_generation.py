@@ -8,10 +8,12 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import httpx
 
 from bananalecture_backend.core.errors import ConfigurationError, ExternalServiceError
+from bananalecture_backend.core.logging_config import get_global_logger
 
 if TYPE_CHECKING:
     from bananalecture_backend.core.config import Settings
 
+global_logger = get_global_logger()
 
 AUDIO_API_GROUP_ID_NOT_CONFIGURED = "AUDIO_GENERATION.PROVIDER.GROUP_ID is not configured"
 AUDIO_API_KEY_NOT_CONFIGURED = "AUDIO_GENERATION.PROVIDER.API_KEY is not configured"
@@ -63,6 +65,12 @@ class AudioGenerationClient:
         if not text_value:
             raise ExternalServiceError(TEXT_EMPTY)
 
+        global_logger.bind(
+            role=role,
+            emotion=emotion,
+            speed=speed,
+            text_length=len(text_value),
+        ).info("external_audio_request")
         payload = self._build_payload(text_value, role, emotion, speed)
         return await self._request_audio(payload)
 
@@ -126,18 +134,26 @@ class AudioGenerationClient:
             except ConfigurationError:
                 raise
             except ExternalServiceError as exc:
+                global_logger.bind(attempt=attempt, error=str(exc)).warning("external_audio_retry")
                 last_error = exc
             except (binascii.Error, ValueError, KeyError, TypeError) as exc:
                 message = DECODE_FAILED_TEMPLATE.format(error=exc)
+                global_logger.bind(attempt=attempt, error=message).warning("external_audio_retry")
                 last_error = ExternalServiceError(message)
             except httpx.TimeoutException as exc:
-                last_error = ExternalServiceError(f"Audio generation request timed out: {exc}")
+                message = f"Audio generation request timed out: {exc}"
+                global_logger.bind(attempt=attempt, error=message).warning("external_audio_retry")
+                last_error = ExternalServiceError(message)
             except httpx.HTTPError as exc:
-                last_error = ExternalServiceError(f"Audio generation HTTP request failed: {exc}")
+                message = f"Audio generation HTTP request failed: {exc}"
+                global_logger.bind(attempt=attempt, error=message).warning("external_audio_retry")
+                last_error = ExternalServiceError(message)
 
             if attempt <= self.settings.MAX_RETRIES:
                 await self._exponential_backoff(attempt)
 
+        error_message = str(last_error) if last_error is not None else FAILED
+        global_logger.bind(error=error_message).error("external_audio_failed")
         if last_error is not None:
             raise last_error
         raise ExternalServiceError(FAILED)

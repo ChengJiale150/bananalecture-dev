@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import shutil
 import tempfile
 from functools import partial
 from pathlib import Path, PurePosixPath
@@ -53,6 +54,12 @@ class StorageService:
     async def create_temp_dir(self, prefix: str) -> Path:
         await asyncio.to_thread(partial(self._temp_root.mkdir, parents=True, exist_ok=True))
         return Path(await asyncio.to_thread(tempfile.mkdtemp, prefix=prefix, dir=str(self._temp_root)))
+
+    async def delete_project_files(self, project_id: str) -> None:
+        """Remove all files associated with ``project_id``."""
+        project_dir = self._root / "projects" / project_id
+        if project_dir.exists():
+            await asyncio.to_thread(shutil.rmtree, project_dir, ignore_errors=True)
 
     def normalize_key(self, key: str) -> str:
         return self._to_key_path(key).as_posix()

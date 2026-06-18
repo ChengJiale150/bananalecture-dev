@@ -22,7 +22,9 @@ from bananalecture_backend.application.use_cases.media import (
     GenerateSlideDialoguesUseCase,
     GenerateSlideImageUseCase,
 )
+from bananalecture_backend.core.config import Settings
 from bananalecture_backend.core.errors import NotFoundError
+from bananalecture_backend.core.logging_config import get_global_logger, get_project_logger
 from bananalecture_backend.db.repositories import ProjectRepository, SlideRepository
 from bananalecture_backend.schemas.task import Task, TaskType
 from bananalecture_backend.services.resources import TaskRecordService
@@ -30,18 +32,31 @@ from bananalecture_backend.services.resources import TaskRecordService
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-    from bananalecture_backend.core.config import Settings
+global_logger = get_global_logger()
 
 
 def launch_task(
     task: Task,
     runtime: BackgroundTaskRunner,
     session_factory: async_sessionmaker[AsyncSession],
+    settings: Settings,
     work: Callable[[str, async_sessionmaker[AsyncSession]], Awaitable[None]],
 ) -> None:
     """Create and register an application background task."""
+    project_logger = get_project_logger(task.project_id, settings.STORAGE.DATA_DIR)
 
     async def runner() -> None:
+        global_logger.bind(
+            task_id=task.id,
+            project_id=task.project_id,
+            task_type=task.type.value,
+        ).info("task_started")
+        if project_logger is not None:
+            project_logger.bind(
+                task_id=task.id,
+                task_type=task.type.value,
+            ).info("task_started")
+
         async with session_factory() as session:
             await TaskRecordService(session).mark_running(task.id)
 
@@ -50,13 +65,35 @@ def launch_task(
         except asyncio.CancelledError:
             async with session_factory() as session:
                 await TaskRecordService(session).mark_cancelled(task.id)
+            global_logger.bind(
+                task_id=task.id,
+                project_id=task.project_id,
+            ).info("task_cancelled")
+            if project_logger is not None:
+                project_logger.bind(task_id=task.id).info("task_cancelled")
             raise
         except Exception as exc:
             async with session_factory() as session:
                 await TaskRecordService(session).mark_failed(task.id, str(exc))
+            global_logger.bind(
+                task_id=task.id,
+                project_id=task.project_id,
+                error=str(exc),
+            ).error("task_failed")
+            if project_logger is not None:
+                project_logger.bind(
+                    task_id=task.id,
+                    error=str(exc),
+                ).error("task_failed")
         else:
             async with session_factory() as session:
                 await TaskRecordService(session).mark_completed(task.id)
+            global_logger.bind(
+                task_id=task.id,
+                project_id=task.project_id,
+            ).info("task_completed")
+            if project_logger is not None:
+                project_logger.bind(task_id=task.id).info("task_completed")
 
     runtime.start(task.id, runner())
 
@@ -87,6 +124,17 @@ class QueueBatchImageGenerationUseCase:
         await _ensure_project(self.projects, project_id)
         slides = await self.slides.list_by_project(project_id)
         task = await self.tasks.create_task(project_id, TaskType.IMAGE_GENERATION, max(1, len(slides)))
+        global_logger.bind(
+            task_id=task.id,
+            project_id=project_id,
+            task_type=task.type.value,
+            total_steps=task.total_steps,
+        ).info("task_queued")
+        get_project_logger(project_id, self.settings.STORAGE.DATA_DIR).bind(
+            task_id=task.id,
+            task_type=task.type.value,
+            total_steps=task.total_steps,
+        ).info("task_queued")
 
         async def work(task_id: str, session_factory: async_sessionmaker[AsyncSession]) -> None:
             for index, slide in enumerate(slides, start=1):
@@ -102,7 +150,7 @@ class QueueBatchImageGenerationUseCase:
                     )
                     await TaskRecordService(session).mark_progress(task_id, index)
 
-        launch_task(task, self.runtime, self.session_factory, work)
+        launch_task(task, self.runtime, self.session_factory, self.settings, work)
         return task.id
 
 
@@ -117,6 +165,7 @@ class QueueBatchDialogueGenerationUseCase:
         dialogue_generator: DialogueGenerator,
         prompt_strategy: DialoguePromptStrategy,
         asset_store: AssetStore,
+        settings: Settings,
     ) -> None:
         self.session = session
         self.runtime = runtime
@@ -124,6 +173,7 @@ class QueueBatchDialogueGenerationUseCase:
         self.dialogue_generator = dialogue_generator
         self.prompt_strategy = prompt_strategy
         self.asset_store = asset_store
+        self.settings = settings
         self.projects = ProjectRepository(session)
         self.slides = SlideRepository(session)
         self.tasks = TaskRecordService(session)
@@ -132,6 +182,17 @@ class QueueBatchDialogueGenerationUseCase:
         await _ensure_project(self.projects, project_id)
         slides = await self.slides.list_by_project(project_id)
         task = await self.tasks.create_task(project_id, TaskType.DIALOGUE_GENERATION, max(1, len(slides)))
+        global_logger.bind(
+            task_id=task.id,
+            project_id=project_id,
+            task_type=task.type.value,
+            total_steps=task.total_steps,
+        ).info("task_queued")
+        get_project_logger(project_id, self.settings.STORAGE.DATA_DIR).bind(
+            task_id=task.id,
+            task_type=task.type.value,
+            total_steps=task.total_steps,
+        ).info("task_queued")
 
         async def work(task_id: str, session_factory: async_sessionmaker[AsyncSession]) -> None:
             for index, slide in enumerate(slides, start=1):
@@ -141,10 +202,11 @@ class QueueBatchDialogueGenerationUseCase:
                         self.dialogue_generator,
                         self.prompt_strategy,
                         self.asset_store,
+                        self.settings,
                     ).execute(project_id, slide.id)
                     await TaskRecordService(session).mark_progress(task_id, index)
 
-        launch_task(task, self.runtime, self.session_factory, work)
+        launch_task(task, self.runtime, self.session_factory, self.settings, work)
         return task.id
 
 
@@ -182,6 +244,17 @@ class QueueBatchAudioGenerationUseCase:
         await _ensure_project(self.projects, project_id)
         slides = await self.slides.list_by_project(project_id)
         task = await self.tasks.create_task(project_id, TaskType.AUDIO_GENERATION, max(1, len(slides)))
+        global_logger.bind(
+            task_id=task.id,
+            project_id=project_id,
+            task_type=task.type.value,
+            total_steps=task.total_steps,
+        ).info("task_queued")
+        get_project_logger(project_id, self.settings.STORAGE.DATA_DIR).bind(
+            task_id=task.id,
+            task_type=task.type.value,
+            total_steps=task.total_steps,
+        ).info("task_queued")
 
         async def work(task_id: str, session_factory: async_sessionmaker[AsyncSession]) -> None:
             for index, slide in enumerate(slides, start=1):
@@ -198,7 +271,7 @@ class QueueBatchAudioGenerationUseCase:
                     ).execute(project_id, slide.id)
                     await TaskRecordService(session).mark_progress(task_id, index)
 
-        launch_task(task, self.runtime, self.session_factory, work)
+        launch_task(task, self.runtime, self.session_factory, self.settings, work)
         return task.id
 
 
@@ -230,6 +303,17 @@ class QueueProjectVideoGenerationUseCase:
             self.settings,
         ).validate_inputs(project_id)
         task = await self.tasks.create_task(project_id, TaskType.VIDEO_GENERATION, total_slide_steps + 1)
+        global_logger.bind(
+            task_id=task.id,
+            project_id=project_id,
+            task_type=task.type.value,
+            total_steps=task.total_steps,
+        ).info("task_queued")
+        get_project_logger(project_id, self.settings.STORAGE.DATA_DIR).bind(
+            task_id=task.id,
+            task_type=task.type.value,
+            total_steps=task.total_steps,
+        ).info("task_queued")
 
         async def work(task_id: str, session_factory: async_sessionmaker[AsyncSession]) -> None:
             async with session_factory() as session:
@@ -244,16 +328,22 @@ class QueueProjectVideoGenerationUseCase:
                 )
                 await TaskRecordService(session).mark_progress(task_id, total_slide_steps + 1)
 
-        launch_task(task, self.runtime, self.session_factory, work)
+        launch_task(task, self.runtime, self.session_factory, self.settings, work)
         return task.id
 
 
 class CancelTaskUseCase:
     """Cancel a queued or running task."""
 
-    def __init__(self, session: AsyncSession, runtime: BackgroundTaskRunner) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        runtime: BackgroundTaskRunner,
+        settings: Settings,
+    ) -> None:
         self.session = session
         self.runtime = runtime
+        self.settings = settings
         self.tasks = TaskRecordService(session)
 
     async def execute(self, task_id: str) -> Task:
@@ -263,6 +353,13 @@ class CancelTaskUseCase:
 
         self.runtime.cancel(task_id)
         await self.tasks.mark_cancelled(task_id)
+        global_logger.bind(
+            task_id=task_id,
+            project_id=task.project_id,
+        ).info("task_cancelled")
+        get_project_logger(task.project_id, self.settings.STORAGE.DATA_DIR).bind(
+            task_id=task_id,
+        ).info("task_cancelled")
         return await self.tasks.get_task(task_id)
 
 

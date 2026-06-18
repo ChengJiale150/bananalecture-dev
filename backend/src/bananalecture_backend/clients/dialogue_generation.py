@@ -10,6 +10,7 @@ from pydantic_ai.providers.openai import OpenAIProvider
 
 from bananalecture_backend.application.ports import GeneratedDialogueDraft
 from bananalecture_backend.core.errors import ConfigurationError, ExternalServiceError
+from bananalecture_backend.core.logging_config import get_global_logger
 from bananalecture_backend.schemas.common import APIModel
 from bananalecture_backend.schemas.dialogue import DialogueEmotion, DialogueRole, DialogueSpeed
 
@@ -18,6 +19,7 @@ if TYPE_CHECKING:
 
     from bananalecture_backend.core.config import Settings
 
+global_logger = get_global_logger()
 
 DIALOGUE_API_KEY_NOT_CONFIGURED = "DIALOGUE_GENERATION.PROVIDER.API_KEY is not configured"
 DIALOGUE_MODEL_NAME_EMPTY = "DIALOGUE_GENERATION.MODEL_NAME must not be empty"
@@ -74,11 +76,18 @@ class DialogueGenerationClient:
         if image_bytes is not None:
             content.append(BinaryContent(data=image_bytes, media_type="image/png"))
 
+        global_logger.bind(
+            prompt_length=len(prompt),
+            has_image=image_bytes is not None,
+            model=self.settings.MODEL_NAME,
+        ).info("external_dialogue_request")
         try:
             result = await self.agent.run(content)
         except Exception as exc:
             message = f"Dialogue generation failed: {exc}"
+            global_logger.bind(error=message).error("external_dialogue_failed")
             raise ExternalServiceError(message) from exc
+        global_logger.bind(count=len(result.output)).info("external_dialogue_succeeded")
         return [
             GeneratedDialogueDraft(
                 role=item.role,

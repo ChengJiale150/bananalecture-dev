@@ -40,6 +40,7 @@ from bananalecture_backend.clients.dialogue_generation import build_dialogue_gen
 from bananalecture_backend.clients.image_generation import build_image_generation_client
 from bananalecture_backend.core.config import ROOT_DIR, Settings
 from bananalecture_backend.infrastructure.audio_processing import build_audio_processing_service
+from bananalecture_backend.infrastructure.log_reader import LogReader
 from bananalecture_backend.infrastructure.storage import StorageService
 from bananalecture_backend.infrastructure.video_processing import build_video_processing_service
 from bananalecture_backend.services.resources import (
@@ -98,6 +99,23 @@ def get_current_user_id(request: Request) -> str:
 
 
 CurrentUserIdDep = Annotated[str, Depends(get_current_user_id)]
+
+
+def require_admin(current_user_id: str, settings: Settings) -> None:
+    """Raise 403 if the current user is not in the admin list."""
+    if current_user_id not in settings.SYSTEM.ADMIN_USER_IDS:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+
+
+def get_log_reader() -> LogReader:
+    """Build a log reader instance."""
+    return LogReader()
+
+
+LogReaderDep = Annotated[LogReader, Depends(get_log_reader)]
 
 
 @dataclass
@@ -234,8 +252,9 @@ def get_generate_slide_dialogues_use_case(
     dialogue_generator: DialogueGeneratorDep,
     prompt_strategy: DialoguePromptStrategyDep,
     asset_store: AssetStoreDep,
+    settings: SettingsDep,
 ) -> GenerateSlideDialoguesUseCase:
-    return GenerateSlideDialoguesUseCase(session, dialogue_generator, prompt_strategy, asset_store)
+    return GenerateSlideDialoguesUseCase(session, dialogue_generator, prompt_strategy, asset_store, settings)
 
 
 def get_generate_slide_audio_use_case(
@@ -297,6 +316,7 @@ def get_queue_batch_dialogue_generation_use_case(
         dialogue_generator,
         prompt_strategy,
         asset_store,
+        context.settings,
     )
 
 
@@ -338,8 +358,12 @@ def get_queue_project_video_generation_use_case(
     )
 
 
-def get_cancel_task_use_case(session: DBSessionDep, runtime: RuntimeDep) -> CancelTaskUseCase:
-    return CancelTaskUseCase(session, runtime)
+def get_cancel_task_use_case(
+    session: DBSessionDep,
+    runtime: RuntimeDep,
+    settings: SettingsDep,
+) -> CancelTaskUseCase:
+    return CancelTaskUseCase(session, runtime, settings)
 
 
 GenerateSlideImageUseCaseDep = Annotated[GenerateSlideImageUseCase, Depends(get_generate_slide_image_use_case)]

@@ -4,6 +4,7 @@ from datetime import UTC
 import pytest
 
 from bananalecture_backend.application.use_cases.tasks import CancelTaskUseCase, launch_task
+from bananalecture_backend.core.config import Settings
 from bananalecture_backend.core.errors import NotFoundError
 from bananalecture_backend.db.repositories import TaskRepository
 from bananalecture_backend.infrastructure.task_runtime import InMemoryBackgroundTaskRunner
@@ -78,7 +79,9 @@ async def test_get_task_returns_task_and_raises_not_found_for_missing_task(db_se
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_cancel_task_marks_non_terminal_task_cancelled_and_calls_runtime(db_session) -> None:
+async def test_cancel_task_marks_non_terminal_task_cancelled_and_calls_runtime(
+    db_session, test_settings: Settings
+) -> None:
     project_id = await _create_project(db_session)
     service = TaskRecordService(db_session)
     task = await service.create_task(project_id, TaskType.VIDEO_GENERATION, 1)
@@ -92,7 +95,7 @@ async def test_cancel_task_marks_non_terminal_task_cancelled_and_calls_runtime(d
 
     runtime.cancel = _cancel
 
-    cancelled = await CancelTaskUseCase(db_session, runtime).execute(task.id)
+    cancelled = await CancelTaskUseCase(db_session, runtime, test_settings).execute(task.id)
 
     stored = await service.tasks.get(task.id)
     assert stored is not None
@@ -107,7 +110,7 @@ async def test_cancel_task_marks_non_terminal_task_cancelled_and_calls_runtime(d
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_cancel_task_returns_terminal_task_without_runtime_cancel(db_session) -> None:
+async def test_cancel_task_returns_terminal_task_without_runtime_cancel(db_session, test_settings: Settings) -> None:
     project_id = await _create_project(db_session)
     service = TaskRecordService(db_session)
     task = await service.create_task(project_id, TaskType.DIALOGUE_GENERATION, 2)
@@ -121,7 +124,7 @@ async def test_cancel_task_returns_terminal_task_without_runtime_cancel(db_sessi
     runtime = InMemoryBackgroundTaskRunner()
     runtime.cancel = lambda _: pytest.fail("runtime.cancel should not be called for terminal tasks")
 
-    cancelled = await CancelTaskUseCase(db_session, runtime).execute(task.id)
+    cancelled = await CancelTaskUseCase(db_session, runtime, test_settings).execute(task.id)
 
     refreshed = await service.tasks.get(task.id)
     assert refreshed is not None
@@ -133,14 +136,16 @@ async def test_cancel_task_returns_terminal_task_without_runtime_cancel(db_sessi
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_cancel_task_raises_not_found_for_missing_task(db_session) -> None:
+async def test_cancel_task_raises_not_found_for_missing_task(db_session, test_settings: Settings) -> None:
     with pytest.raises(NotFoundError, match="Task not found"):
-        await CancelTaskUseCase(db_session, InMemoryBackgroundTaskRunner()).execute("missing-task")
+        await CancelTaskUseCase(db_session, InMemoryBackgroundTaskRunner(), test_settings).execute("missing-task")
 
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_launch_task_marks_task_completed_after_successful_work(db_session, database_manager) -> None:
+async def test_launch_task_marks_task_completed_after_successful_work(
+    db_session, database_manager, test_settings: Settings
+) -> None:
     project_id = await _create_project(db_session)
     task = await TaskRecordService(db_session).create_task(project_id, TaskType.IMAGE_GENERATION, 4)
     runtime = InMemoryBackgroundTaskRunner()
@@ -149,7 +154,7 @@ async def test_launch_task_marks_task_completed_after_successful_work(db_session
     async def work(_: str, __) -> None:
         work_started.set()
 
-    launch_task(task, runtime, database_manager.session_factory, work)
+    launch_task(task, runtime, database_manager.session_factory, test_settings, work)
 
     await work_started.wait()
     runner = runtime._tasks[task.id]
@@ -166,7 +171,9 @@ async def test_launch_task_marks_task_completed_after_successful_work(db_session
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_launch_task_marks_task_failed_when_work_raises(db_session, database_manager) -> None:
+async def test_launch_task_marks_task_failed_when_work_raises(
+    db_session, database_manager, test_settings: Settings
+) -> None:
     project_id = await _create_project(db_session)
     task = await TaskRecordService(db_session).create_task(project_id, TaskType.AUDIO_GENERATION, 2)
     runtime = InMemoryBackgroundTaskRunner()
@@ -174,7 +181,7 @@ async def test_launch_task_marks_task_failed_when_work_raises(db_session, databa
     async def work(_: str, __) -> None:
         raise RuntimeError("generation exploded")
 
-    launch_task(task, runtime, database_manager.session_factory, work)
+    launch_task(task, runtime, database_manager.session_factory, test_settings, work)
 
     runner = runtime._tasks[task.id]
     await runner
@@ -189,7 +196,9 @@ async def test_launch_task_marks_task_failed_when_work_raises(db_session, databa
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_launch_task_marks_task_cancelled_when_runtime_cancels_it(db_session, database_manager) -> None:
+async def test_launch_task_marks_task_cancelled_when_runtime_cancels_it(
+    db_session, database_manager, test_settings: Settings
+) -> None:
     project_id = await _create_project(db_session)
     task = await TaskRecordService(db_session).create_task(project_id, TaskType.VIDEO_GENERATION, 1)
     runtime = InMemoryBackgroundTaskRunner()
@@ -199,7 +208,7 @@ async def test_launch_task_marks_task_cancelled_when_runtime_cancels_it(db_sessi
         work_started.set()
         await asyncio.sleep(5)
 
-    launch_task(task, runtime, database_manager.session_factory, work)
+    launch_task(task, runtime, database_manager.session_factory, test_settings, work)
 
     await work_started.wait()
     assert runtime.cancel(task.id) is True

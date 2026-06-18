@@ -8,11 +8,14 @@ from typing import TYPE_CHECKING
 import ffmpeg  # type: ignore[import-untyped]
 
 from bananalecture_backend.core.errors import ConfigurationError, ExternalServiceError
+from bananalecture_backend.core.logging_config import get_global_logger
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from bananalecture_backend.core.config import Settings
+
+global_logger = get_global_logger()
 
 
 class VideoProcessingService:
@@ -43,6 +46,9 @@ class VideoProcessingService:
             raise ExternalServiceError(message)
 
         output.parent.mkdir(parents=True, exist_ok=True)
+        global_logger.bind(image=str(image), audio=str(audio), output=str(output)).info(
+            "ffmpeg_render_started",
+        )
 
         try:
             image_stream = ffmpeg.input(str(image), loop=1, framerate=self.settings.FPS)
@@ -77,16 +83,20 @@ class VideoProcessingService:
             ffmpeg.run(stream, overwrite_output=True, capture_stdout=True, capture_stderr=True)
         except FileNotFoundError as exc:
             message = "ffmpeg is not installed"
+            global_logger.bind(output=str(output), error=message).error("ffmpeg_render_failed")
             raise ConfigurationError(message) from exc
         except ffmpeg.Error as exc:
             stderr = exc.stderr.decode("utf-8", errors="ignore").strip()
             message = stderr or str(exc)
             error_message = f"ffmpeg failed: {message}"
+            global_logger.bind(output=str(output), error=message).error("ffmpeg_render_failed")
             raise ExternalServiceError(error_message) from exc
 
         if not output.exists():
             message = "ffmpeg did not produce an output file"
+            global_logger.bind(output=str(output), error=message).error("ffmpeg_render_failed")
             raise ExternalServiceError(message)
+        global_logger.bind(output=str(output)).info("ffmpeg_render_succeeded")
 
     def _concatenate_sync(self, inputs: list[Path], output: Path) -> None:
         for path in inputs:
@@ -96,6 +106,7 @@ class VideoProcessingService:
 
         output.parent.mkdir(parents=True, exist_ok=True)
         manifest_path = self._write_manifest(output.parent, inputs)
+        global_logger.bind(input_count=len(inputs), output=str(output)).info("ffmpeg_concat_started")
         try:
             stream = ffmpeg.input(str(manifest_path), format="concat", safe=0)
             stream = ffmpeg.output(
@@ -107,18 +118,22 @@ class VideoProcessingService:
             ffmpeg.run(stream, overwrite_output=True, capture_stdout=True, capture_stderr=True)
         except FileNotFoundError as exc:
             message = "ffmpeg is not installed"
+            global_logger.bind(output=str(output), error=message).error("ffmpeg_concat_failed")
             raise ConfigurationError(message) from exc
         except ffmpeg.Error as exc:
             stderr = exc.stderr.decode("utf-8", errors="ignore").strip()
             message = stderr or str(exc)
             error_message = f"ffmpeg failed: {message}"
+            global_logger.bind(output=str(output), error=message).error("ffmpeg_concat_failed")
             raise ExternalServiceError(error_message) from exc
         finally:
             manifest_path.unlink(missing_ok=True)
 
         if not output.exists():
             message = "ffmpeg did not produce an output file"
+            global_logger.bind(output=str(output), error=message).error("ffmpeg_concat_failed")
             raise ExternalServiceError(message)
+        global_logger.bind(output=str(output)).info("ffmpeg_concat_succeeded")
 
     def _write_manifest(self, directory: Path, inputs: list[Path]) -> Path:
         with tempfile.NamedTemporaryFile(

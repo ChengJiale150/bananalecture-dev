@@ -66,6 +66,15 @@ class TaskSettings(BaseModel):
     VIDEO_TASK_DELAY_SECONDS: float = Field(default=0.2, ge=0.0)
 
 
+class SystemSettings(BaseModel):
+    """System-wide operational settings."""
+
+    ADMIN_USER_IDS: list[str] = Field(default_factory=lambda: ["admin"])
+    LOG_LEVEL: str = "INFO"
+    LOG_ROTATION: str = "10 MB"
+    LOG_RETENTION: str = "30 days"
+
+
 class Settings(BaseSettings):
     """System settings for the FastAPI application."""
 
@@ -76,6 +85,7 @@ class Settings(BaseSettings):
     STORAGE: StorageSettings = Field(default_factory=StorageSettings)
     PAGINATION: PaginationSettings = Field(default_factory=PaginationSettings)
     TASKS: TaskSettings = Field(default_factory=TaskSettings)
+    SYSTEM: SystemSettings = Field(default_factory=SystemSettings)
     IMAGE_GENERATION: ImageGenerationSettings = Field(default_factory=ImageGenerationSettings)
     IMAGE_DELIVERY: ImageDeliverySettings = Field(default_factory=ImageDeliverySettings)
     DIALOGUE_GENERATION: DialogueGenerationSettings = Field(default_factory=DialogueGenerationSettings)
