@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query, status
 
 from bananalecture_backend.api.v1.deps import CurrentUserIdDep, ProjectResourceServiceDep
 from bananalecture_backend.schemas.project import CreateProjectRequest, UpdateProjectRequest
@@ -51,12 +51,9 @@ async def list_projects(
 async def get_project(
     project_id: str,
     service: ProjectResourceServiceDep,
-    current_user_id: CurrentUserIdDep,
 ) -> dict[str, object]:
     """Get project detail."""
     project = await service.get_project_detail(project_id)
-    if project.user_id != current_user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     return {"code": status.HTTP_200_OK, "message": "success", "data": project.model_dump()}
 
 
@@ -65,12 +62,8 @@ async def update_project(
     project_id: str,
     request: UpdateProjectRequest,
     service: ProjectResourceServiceDep,
-    current_user_id: CurrentUserIdDep,
 ) -> dict[str, object]:
     """Update project metadata."""
-    project = await service.get_project_detail(project_id)
-    if project.user_id != current_user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     updated = await service.update_project(project_id, request)
     return {"code": status.HTTP_200_OK, "message": "项目更新成功", "data": updated.model_dump()}
 
@@ -79,11 +72,7 @@ async def update_project(
 async def delete_project(
     project_id: str,
     service: ProjectResourceServiceDep,
-    current_user_id: CurrentUserIdDep,
 ) -> dict[str, object]:
     """Delete a project."""
-    project = await service.get_project_detail(project_id)
-    if project.user_id != current_user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     await service.delete_project(project_id)
     return {"code": status.HTTP_200_OK, "message": "项目删除成功", "data": None}

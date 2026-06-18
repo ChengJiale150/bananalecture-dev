@@ -184,7 +184,7 @@ def test_project_api_returns_401_without_user_id_header(client: TestClient, test
 
 
 @pytest.mark.e2e
-def test_project_api_returns_403_for_cross_user_access(client: TestClient, test_settings: Settings) -> None:
+def test_project_api_allows_cross_user_access(client: TestClient, test_settings: Settings) -> None:
     project = _create_project(client, test_settings, "Secret", "user-a")
     project_id = project["id"]
 
@@ -192,4 +192,18 @@ def test_project_api_returns_403_for_cross_user_access(client: TestClient, test_
         f"{test_settings.API.V1_STR}/projects/{project_id}",
         headers={"X-User-Id": "user-b"},
     )
-    assert response.status_code == status.HTTP_403_FORBIDDEN
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["data"]["id"] == project_id
+
+    update_response = client.put(
+        f"{test_settings.API.V1_STR}/projects/{project_id}",
+        json={"name": "Updated by other", "messages": "[]"},
+        headers={"X-User-Id": "user-b"},
+    )
+    assert update_response.status_code == status.HTTP_200_OK
+
+    delete_response = client.delete(
+        f"{test_settings.API.V1_STR}/projects/{project_id}",
+        headers={"X-User-Id": "user-b"},
+    )
+    assert delete_response.status_code == status.HTTP_200_OK
