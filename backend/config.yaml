@@ -52,9 +52,9 @@ IMAGE_DELIVERY:
   LOSSLESS: false
 
 DIALOGUE_GENERATION:
-  MODEL_NAME: "qwen/qwen3-vl-235b-a22b-instruct"
+  MODEL_NAME: "MiniMax-M3"
   PROVIDER:
-    BASE_URL: "https://openrouter.ai/api/v1"
+    BASE_URL: "https://api.minimaxi.com/v1"
     API_KEY: null
   PROFILE: {}
   SETTINGS: {}

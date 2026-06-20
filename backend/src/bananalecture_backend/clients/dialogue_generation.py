@@ -27,6 +27,7 @@ DIALOGUE_PROFILE_INVALID = "DIALOGUE_GENERATION.PROFILE is invalid"
 
 SYSTEM_PROMPT_TEMPLATE = """
 你是一个专业的口播稿生成助手。你需要根据将提供的信息转换为生动有趣的对话稿。
+生成的内容将直接输入语音合成(TTS)模型进行朗读, 请确保所有文本易于自然朗读
 
 要求:
 1. 角色仅可使用: {roles}

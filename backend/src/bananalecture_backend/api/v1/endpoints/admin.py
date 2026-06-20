@@ -91,13 +91,13 @@ async def list_admin_users(  # noqa: PLR0913
 
     projects = ProjectRepository(session)
     rows, total = await projects.list_distinct_users(
-        page, page_size, sort_by, descending=order == "desc",
+        page,
+        page_size,
+        sort_by,
+        descending=order == "desc",
     )
 
-    items = [
-        AdminUserItem(user_id=row[0], project_count=row[1], last_active_at=row[2])
-        for row in rows
-    ]
+    items = [AdminUserItem(user_id=row[0], project_count=row[1], last_active_at=row[2]) for row in rows]
     total_pages = max(1, (total + page_size - 1) // page_size)
     pagination = Pagination(page=page, page_size=page_size, total=total, total_pages=total_pages)
     result = AdminUserList(items=items, pagination=pagination)
@@ -123,7 +123,11 @@ async def list_admin_projects(  # noqa: PLR0913
 
     projects = ProjectRepository(session)
     rows, total = await projects.list_all(
-        page, page_size, user_id, sort_by, descending=order == "desc",
+        page,
+        page_size,
+        user_id,
+        sort_by,
+        descending=order == "desc",
     )
 
     items = [ProjectSummary.model_validate(p) for p in rows]

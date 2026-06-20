@@ -303,9 +303,20 @@ class GenerateSlideDialoguesUseCase:
         if self.asset_store is None or image_path is None:
             return None
         try:
-            return await self.asset_store.read_bytes(image_path)
+            raw = await self.asset_store.read_bytes(image_path)
         except NotFoundError:
             return None
+        return self._compress_for_llm(raw)
+
+    @staticmethod
+    def _compress_for_llm(raw: bytes, max_dim: int = 1024) -> bytes:
+        """Downscale an image to at most 1K resolution for LLM provider consumption."""
+        img = Image.open(BytesIO(raw))
+        if max(img.size) > max_dim:
+            img.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
+        buf = BytesIO()
+        img.save(buf, format="PNG")
+        return buf.getvalue()
 
 
 class GenerateSlideAudioUseCase:
