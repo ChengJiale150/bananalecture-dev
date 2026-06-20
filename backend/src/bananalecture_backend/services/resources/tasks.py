@@ -44,7 +44,11 @@ class TaskRecordService:
         await self._update_task(
             task_id,
             {"status": TaskStatus.RUNNING.value, "updated_at": utc_now()},
-            allowed_current_statuses={TaskStatus.PENDING.value},
+            allowed_current_statuses={
+                TaskStatus.PENDING.value,
+                TaskStatus.PAUSED.value,
+                TaskStatus.FAILED.value,
+            },
         )
 
     async def mark_progress(self, task_id: str, current_step: int) -> None:
@@ -90,6 +94,16 @@ class TaskRecordService:
                 "updated_at": utc_now(),
             },
             skipped_current_statuses={TaskStatus.CANCELLED.value},
+        )
+
+    async def mark_paused(self, task_id: str) -> None:
+        await self._update_task(
+            task_id,
+            {"status": TaskStatus.PAUSED.value, "updated_at": utc_now()},
+            skipped_current_statuses={
+                TaskStatus.CANCELLED.value,
+                TaskStatus.COMPLETED.value,
+            },
         )
 
     async def _update_task(

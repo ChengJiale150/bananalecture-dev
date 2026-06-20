@@ -1,4 +1,4 @@
-# ruff: noqa: D102, D107, BLE001, EM101, TRY003, TC001, TC003, PLR0913
+# ruff: noqa: D102, D107, BLE001, EM101, EM102, TRY003, TC001, TC003, PLR0913
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from bananalecture_backend.application.use_cases.media import (
     GenerateSlideImageUseCase,
 )
 from bananalecture_backend.core.config import Settings
-from bananalecture_backend.core.errors import NotFoundError
+from bananalecture_backend.core.errors import BadRequestError, NotFoundError
 from bananalecture_backend.core.logging_config import get_global_logger, get_project_logger
 from bananalecture_backend.db.repositories import ProjectRepository, SlideRepository
 from bananalecture_backend.schemas.task import Task, TaskType
@@ -31,6 +31,8 @@ from bananalecture_backend.services.resources import TaskRecordService
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+    from bananalecture_backend.models.entities import SlideModel
 
 global_logger = get_global_logger()
 
@@ -138,6 +140,7 @@ class QueueBatchImageGenerationUseCase:
 
         async def work(task_id: str, session_factory: async_sessionmaker[AsyncSession]) -> None:
             for index, slide in enumerate(slides, start=1):
+                await self.runtime.wait_if_paused(task_id)
                 async with session_factory() as session:
                     await GenerateSlideImageUseCase(
                         session,
@@ -196,6 +199,7 @@ class QueueBatchDialogueGenerationUseCase:
 
         async def work(task_id: str, session_factory: async_sessionmaker[AsyncSession]) -> None:
             for index, slide in enumerate(slides, start=1):
+                await self.runtime.wait_if_paused(task_id)
                 async with session_factory() as session:
                     await GenerateSlideDialoguesUseCase(
                         session,
@@ -258,6 +262,7 @@ class QueueBatchAudioGenerationUseCase:
 
         async def work(task_id: str, session_factory: async_sessionmaker[AsyncSession]) -> None:
             for index, slide in enumerate(slides, start=1):
+                await self.runtime.wait_if_paused(task_id)
                 async with session_factory() as session:
                     await GenerateSlideAudioUseCase(
                         session,
@@ -325,11 +330,246 @@ class QueueProjectVideoGenerationUseCase:
                 ).execute(
                     project_id,
                     on_slide_rendered=lambda step: TaskRecordService(session).mark_progress(task_id, step),
+                    before_slide_render=lambda: self.runtime.wait_if_paused(task_id),
                 )
                 await TaskRecordService(session).mark_progress(task_id, total_slide_steps + 1)
 
         launch_task(task, self.runtime, self.session_factory, self.settings, work)
         return task.id
+
+
+class PauseTaskUseCase:
+    """Pause a running task gracefully (current slide completes before pause)."""
+
+    def __init__(
+        self,
+        session: AsyncSession,
+        runtime: BackgroundTaskRunner,
+        settings: Settings,
+    ) -> None:
+        self.session = session
+        self.runtime = runtime
+        self.settings = settings
+        self.tasks = TaskRecordService(session)
+
+    async def execute(self, task_id: str) -> Task:
+        task = await self.tasks.get_task(task_id)
+        if task.status.value in {"completed", "failed", "cancelled", "paused"}:
+            return task
+
+        self.runtime.pause(task_id)
+        await self.tasks.mark_paused(task_id)
+        global_logger.bind(
+            task_id=task_id,
+            project_id=task.project_id,
+        ).info("task_paused")
+        get_project_logger(task.project_id, self.settings.STORAGE.DATA_DIR).bind(
+            task_id=task_id,
+        ).info("task_paused")
+        return await self.tasks.get_task(task_id)
+
+
+class ResumeTaskUseCase:
+    """Resume a paused or failed task from its last checkpoint."""
+
+    def __init__(
+        self,
+        session: AsyncSession,
+        runtime: BackgroundTaskRunner,
+        session_factory: async_sessionmaker[AsyncSession],
+        image_generator: ImageGenerator,
+        dialogue_generator: DialogueGenerator,
+        prompt_strategy: DialoguePromptStrategy,
+        audio_synthesizer: AudioSynthesizer,
+        audio_processor: AudioProcessor,
+        audio_cue_strategy: AudioCueStrategy,
+        video_renderer: VideoRenderer,
+        asset_store: AssetStore,
+        settings: Settings,
+    ) -> None:
+        self.session = session
+        self.runtime = runtime
+        self.session_factory = session_factory
+        self.image_generator = image_generator
+        self.dialogue_generator = dialogue_generator
+        self.prompt_strategy = prompt_strategy
+        self.audio_synthesizer = audio_synthesizer
+        self.audio_processor = audio_processor
+        self.audio_cue_strategy = audio_cue_strategy
+        self.video_renderer = video_renderer
+        self.asset_store = asset_store
+        self.settings = settings
+        self.tasks = TaskRecordService(session)
+        self.slides = SlideRepository(session)
+
+    async def execute(self, task_id: str) -> Task:
+        task = await self.tasks.get_task(task_id)
+
+        if task.status.value not in {"paused", "failed"}:
+            return task
+
+        project_id = task.project_id
+
+        # Fast path: PAUSED + runtime event still alive → just unblock the coroutine
+        if task.status.value == "paused" and self.runtime.resume(task_id):
+            await self.tasks.mark_running(task_id)
+            global_logger.bind(
+                task_id=task_id,
+                project_id=project_id,
+            ).info("task_resumed")
+            get_project_logger(project_id, self.settings.STORAGE.DATA_DIR).bind(
+                task_id=task_id,
+            ).info("task_resumed")
+            return await self.tasks.get_task(task_id)
+
+        # Slow path: FAILED, or PAUSED but runtime lost (server restart).
+        # Rebuild the work coroutine from the checkpoint stored in current_step.
+        resume_from = task.current_step
+        await self.tasks.mark_running(task_id)
+
+        slides = await self.slides.list_by_project(project_id)
+        task_type = TaskType(task.type.value)
+
+        if task_type == TaskType.IMAGE_GENERATION:
+            work = self._build_image_work(project_id, slides, resume_from)
+        elif task_type == TaskType.DIALOGUE_GENERATION:
+            work = self._build_dialogue_work(project_id, slides, resume_from)
+        elif task_type == TaskType.AUDIO_GENERATION:
+            work = self._build_audio_work(project_id, slides, resume_from)
+        elif task_type == TaskType.VIDEO_GENERATION:
+            work = self._build_video_work(project_id, slides, resume_from)
+        else:
+            raise BadRequestError(f"Unknown task type: {task.type.value}")
+
+        launch_task(task, self.runtime, self.session_factory, self.settings, work)
+
+        global_logger.bind(
+            task_id=task_id,
+            project_id=project_id,
+            resume_from=resume_from,
+        ).info("task_resumed_from_checkpoint")
+        get_project_logger(project_id, self.settings.STORAGE.DATA_DIR).bind(
+            task_id=task_id,
+            resume_from=resume_from,
+        ).info("task_resumed_from_checkpoint")
+        return await self.tasks.get_task(task_id)
+
+    def _build_image_work(
+        self,
+        project_id: str,
+        slides: list[SlideModel],
+        resume_from: int,
+    ) -> Callable[[str, async_sessionmaker[AsyncSession]], Awaitable[None]]:
+        runtime = self.runtime
+        image_generator = self.image_generator
+        asset_store = self.asset_store
+        session_factory = self.session_factory
+        settings = self.settings
+
+        async def work(task_id: str, _: async_sessionmaker[AsyncSession]) -> None:
+            for index, slide in enumerate(slides[resume_from:], start=resume_from + 1):
+                await runtime.wait_if_paused(task_id)
+                async with session_factory() as session:
+                    await GenerateSlideImageUseCase(
+                        session,
+                        image_generator,
+                        asset_store,
+                        settings,
+                    ).execute(project_id, slide.id)
+                    await TaskRecordService(session).mark_progress(task_id, index)
+
+        return work
+
+    def _build_dialogue_work(
+        self,
+        project_id: str,
+        slides: list[SlideModel],
+        resume_from: int,
+    ) -> Callable[[str, async_sessionmaker[AsyncSession]], Awaitable[None]]:
+        runtime = self.runtime
+        dialogue_generator = self.dialogue_generator
+        prompt_strategy = self.prompt_strategy
+        asset_store = self.asset_store
+        session_factory = self.session_factory
+        settings = self.settings
+
+        async def work(task_id: str, _: async_sessionmaker[AsyncSession]) -> None:
+            for index, slide in enumerate(slides[resume_from:], start=resume_from + 1):
+                await runtime.wait_if_paused(task_id)
+                async with session_factory() as session:
+                    await GenerateSlideDialoguesUseCase(
+                        session,
+                        dialogue_generator,
+                        prompt_strategy,
+                        asset_store,
+                        settings,
+                    ).execute(project_id, slide.id)
+                    await TaskRecordService(session).mark_progress(task_id, index)
+
+        return work
+
+    def _build_audio_work(
+        self,
+        project_id: str,
+        slides: list[SlideModel],
+        resume_from: int,
+    ) -> Callable[[str, async_sessionmaker[AsyncSession]], Awaitable[None]]:
+        runtime = self.runtime
+        audio_synthesizer = self.audio_synthesizer
+        audio_processor = self.audio_processor
+        dialogue_generator = self.dialogue_generator
+        prompt_strategy = self.prompt_strategy
+        audio_cue_strategy = self.audio_cue_strategy
+        asset_store = self.asset_store
+        session_factory = self.session_factory
+        settings = self.settings
+
+        async def work(task_id: str, _: async_sessionmaker[AsyncSession]) -> None:
+            for index, slide in enumerate(slides[resume_from:], start=resume_from + 1):
+                await runtime.wait_if_paused(task_id)
+                async with session_factory() as session:
+                    await GenerateSlideAudioUseCase(
+                        session,
+                        asset_store,
+                        audio_synthesizer,
+                        audio_processor,
+                        dialogue_generator,
+                        prompt_strategy,
+                        audio_cue_strategy,
+                        settings,
+                    ).execute(project_id, slide.id)
+                    await TaskRecordService(session).mark_progress(task_id, index)
+
+        return work
+
+    def _build_video_work(
+        self,
+        project_id: str,
+        slides: list[SlideModel],
+        resume_from: int,  # noqa: ARG002
+    ) -> Callable[[str, async_sessionmaker[AsyncSession]], Awaitable[None]]:
+        runtime = self.runtime
+        asset_store = self.asset_store
+        video_renderer = self.video_renderer
+        session_factory = self.session_factory
+        settings = self.settings
+        total_steps = len(slides) + 1
+
+        async def work(task_id: str, _: async_sessionmaker[AsyncSession]) -> None:
+            async with session_factory() as session:
+                await GenerateProjectVideoUseCase(
+                    session,
+                    asset_store,
+                    video_renderer,
+                    settings,
+                ).execute(
+                    project_id,
+                    on_slide_rendered=lambda step: TaskRecordService(session).mark_progress(task_id, step),
+                    before_slide_render=lambda: runtime.wait_if_paused(task_id),
+                )
+                await TaskRecordService(session).mark_progress(task_id, total_steps)
+
+        return work
 
 
 class CancelTaskUseCase:

@@ -15,7 +15,7 @@ export const TASK_TYPES = [
   'image_generation',
   'video_generation',
 ] as const;
-export const TASK_STATUSES = ['pending', 'running', 'completed', 'cancelled', 'failed'] as const;
+export const TASK_STATUSES = ['pending', 'running', 'paused', 'completed', 'cancelled', 'failed'] as const;
 
 export type SlideType = (typeof SLIDE_TYPES)[number];
 export type DialogueRole = (typeof DIALOGUE_ROLES)[number];

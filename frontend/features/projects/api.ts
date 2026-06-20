@@ -335,6 +335,18 @@ export async function cancelTask(taskId: string) {
   return mapTask(response.data);
 }
 
+export async function pauseTask(taskId: string) {
+  const apiClient = getApiClient();
+  const response = await apiClient.pauseTask(taskId);
+  return mapTask(response.data);
+}
+
+export async function resumeTask(taskId: string) {
+  const apiClient = getApiClient();
+  const response = await apiClient.resumeTask(taskId);
+  return mapTask(response.data);
+}
+
 export function getSlideImageUrl(projectId: string, slideId: string) {
   const apiClient = getApiClient();
   return apiClient.getSlideImageFileUrl(projectId, slideId);

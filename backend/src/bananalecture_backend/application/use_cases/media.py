@@ -437,6 +437,7 @@ class GenerateProjectVideoUseCase:
         self,
         project_id: str,
         on_slide_rendered: Callable[[int], Awaitable[None]] | None = None,
+        before_slide_render: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
         logger = get_project_logger(project_id, self.settings.STORAGE.DATA_DIR)
         slide_assets = await self._validate_inputs(project_id)
@@ -452,6 +453,8 @@ class GenerateProjectVideoUseCase:
         try:
             clip_paths: list[Path] = []
             for index, asset in enumerate(slide_assets, start=1):
+                if before_slide_render is not None:
+                    await before_slide_render()
                 clip_path = temp_dir / f"{index:03d}.mp4"
                 await self.video_renderer.render_static_slide_clip(asset.image_path, asset.audio_path, clip_path)
                 clip_paths.append(clip_path)

@@ -26,7 +26,9 @@ import {
   getTask,
   listDialogues,
   modifySlideImage,
+  pauseTask,
   reorderDialogues,
+  resumeTask,
   updateDialogue,
 } from '@/features/projects/api';
 import { cacheImage, getCachedImage } from '@/features/preview/utils/image-cache';
@@ -42,6 +44,7 @@ import {
   getGenerationStageLabel,
   getNextGenerationStage,
   isGenerationSessionActive,
+  isGenerationSessionResumable,
   loadGenerationSession,
   markGenerationStageCompleted,
   persistGenerationSession,
@@ -366,7 +369,16 @@ export function usePreviewState(
 
   useEffect(() => {
     const restoredSession = generationSessionRef.current;
-    if (!restoredSession || restoredSession.status !== 'running' || !projectId) {
+    if (!restoredSession || !projectId) {
+      return;
+    }
+
+    // paused/failed 状态：不自动操作，等待用户点击继续
+    if (restoredSession.status === 'paused' || restoredSession.status === 'failed') {
+      return;
+    }
+
+    if (restoredSession.status !== 'running') {
       return;
     }
 
@@ -596,6 +608,48 @@ export function usePreviewState(
     await startStageTask('images', 'pipeline');
   }, [projectId, startStageTask]);
 
+  const handlePauseGeneration = useCallback(async () => {
+    const activeTaskId = generationSessionRef.current?.activeTask?.id;
+    if (!activeTaskId) return;
+
+    try {
+      const pausedTask = await pauseTask(activeTaskId);
+      const currentSession = generationSessionRef.current;
+      if (!currentSession) return;
+      commitGenerationSession(
+        attachTaskToGenerationStage(
+          { ...currentSession, activeTask: null, errorMessage: null },
+          currentSession.currentStage ?? 'images',
+          pausedTask
+        )
+      );
+    } catch (error) {
+      console.error('Failed to pause task:', error);
+    }
+  }, [commitGenerationSession]);
+
+  const handleResumeGeneration = useCallback(async () => {
+    const currentSession = generationSessionRef.current;
+    if (!currentSession || !projectId) return;
+
+    const taskId = currentSession.activeTask?.id
+      ?? getCurrentGenerationStageState(currentSession)?.taskId;
+    if (!taskId) return;
+
+    try {
+      const nextTask = await resumeTask(taskId);
+      const nextSession = createGenerationSession(
+        projectId,
+        currentSession.mode,
+        currentSession.currentStage ?? 'images',
+        nextTask
+      );
+      commitGenerationSession(nextSession);
+    } catch (error) {
+      console.error('Failed to resume task:', error);
+    }
+  }, [commitGenerationSession, projectId]);
+
   const handleStopGeneration = useCallback(async () => {
     const activeTaskId = generationSessionRef.current?.activeTask?.id;
     if (!activeTaskId) return;
@@ -776,6 +830,7 @@ export function usePreviewState(
     [generationSession]
   );
 
+  const genSession = generationSession;
   return {
     plan,
     projectId,
@@ -783,9 +838,11 @@ export function usePreviewState(
     setCurrentSlideIndex,
     isLoading,
     isRefreshing,
-    isGeneratingAll: isGenerationSessionActive(generationSession),
+    isGeneratingAll: isGenerationSessionActive(genSession),
+    isPaused: genSession?.status === 'paused',
+    isResumable: isGenerationSessionResumable(genSession),
     isDialogueActionPending: activeActionKey?.startsWith('dialogue-') ?? false,
-    generationSession,
+    generationSession: genSession,
     overallGenerationProgress,
     currentSlide,
     displayDialogues,
@@ -799,6 +856,8 @@ export function usePreviewState(
     handleGenerateDialogues,
     handleGenerateAll,
     handleStartStageGeneration,
+    handlePauseGeneration,
+    handleResumeGeneration,
     handleStopGeneration,
     handleForceRefresh,
     handleAddDialogue,

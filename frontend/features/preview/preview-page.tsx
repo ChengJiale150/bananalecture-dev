@@ -23,6 +23,8 @@ function PreviewContent() {
     isLoading,
     isRefreshing,
     isGeneratingAll,
+    isPaused,
+    isResumable,
     isDialogueActionPending,
     generationSession,
     overallGenerationProgress,
@@ -37,6 +39,8 @@ function PreviewContent() {
     handleGenerateDialogues,
     handleGenerateAll,
     handleStartStageGeneration,
+    handlePauseGeneration,
+    handleResumeGeneration,
     handleStopGeneration,
     handleForceRefresh,
     handleAddDialogue,
@@ -68,12 +72,16 @@ function PreviewContent() {
     <div className="h-screen bg-[#F0F8FF] flex flex-col overflow-hidden">
       <PreviewHeader
         isGeneratingAll={isGeneratingAll}
+        isPaused={isPaused}
+        isResumable={isResumable}
         isRefreshing={isRefreshing}
         generationSession={generationSession}
         overallGenerationProgress={overallGenerationProgress}
         hasVideo={Boolean(projectVideoPath)}
         handleStopGeneration={handleStopGeneration}
         handleGenerateAll={handleGenerateAll}
+        handlePauseGeneration={handlePauseGeneration}
+        handleResumeGeneration={handleResumeGeneration}
         handleStartStageGeneration={handleStartStageGeneration}
         handleDownloadVideo={handleDownloadVideo}
         handleForceRefresh={handleForceRefresh}

@@ -263,6 +263,10 @@ export function isGenerationSessionActive(session: GenerationSessionState | null
   return Boolean(session && session.status === 'running');
 }
 
+export function isGenerationSessionResumable(session: GenerationSessionState | null) {
+  return Boolean(session && (session.status === 'paused' || session.status === 'failed'));
+}
+
 export function mapTaskStatusToStageStatus(status: string): GenerationStageStatus {
   switch (status) {
     case 'completed':
@@ -271,6 +275,8 @@ export function mapTaskStatusToStageStatus(status: string): GenerationStageStatu
       return 'failed';
     case 'cancelled':
       return 'cancelled';
+    case 'paused':
+      return 'paused';
     default:
       return 'running';
   }
@@ -284,6 +290,8 @@ function mapTaskStatusToSessionStatus(status: string): GenerationSessionState['s
       return 'failed';
     case 'cancelled':
       return 'cancelled';
+    case 'paused':
+      return 'paused';
     default:
       return 'running';
   }

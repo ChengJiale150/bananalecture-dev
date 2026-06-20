@@ -1,6 +1,11 @@
 from fastapi import APIRouter, status
 
-from bananalecture_backend.api.v1.deps import CancelTaskUseCaseDep, TaskRecordServiceDep
+from bananalecture_backend.api.v1.deps import (
+    CancelTaskUseCaseDep,
+    PauseTaskUseCaseDep,
+    ResumeTaskUseCaseDep,
+    TaskRecordServiceDep,
+)
 
 router = APIRouter()
 
@@ -10,6 +15,20 @@ async def get_task(task_id: str, service: TaskRecordServiceDep) -> dict[str, obj
     """Get task status."""
     task = await service.get_task(task_id)
     return {"code": status.HTTP_200_OK, "message": "success", "data": task.model_dump(mode="json")}
+
+
+@router.post("/tasks/{task_id}/pause")
+async def pause_task(task_id: str, use_case: PauseTaskUseCaseDep) -> dict[str, object]:
+    """Pause a running task gracefully."""
+    task = await use_case.execute(task_id)
+    return {"code": status.HTTP_200_OK, "message": "任务已暂停", "data": task.model_dump(mode="json")}
+
+
+@router.post("/tasks/{task_id}/resume")
+async def resume_task(task_id: str, use_case: ResumeTaskUseCaseDep) -> dict[str, object]:
+    """Resume a paused or failed task from its last checkpoint."""
+    task = await use_case.execute(task_id)
+    return {"code": status.HTTP_202_ACCEPTED, "message": "任务已恢复", "data": task.model_dump(mode="json")}
 
 
 @router.delete("/tasks/{task_id}")

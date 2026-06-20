@@ -309,6 +309,14 @@ export function createBananaLectureApiClient(options: BananaLectureApiClientOpti
       return requester.requestJson<TaskDTO>(`/tasks/${taskId}`, { method: 'DELETE' });
     },
 
+    pauseTask(taskId: string): Promise<ApiResponse<TaskDTO>> {
+      return requester.requestJson<TaskDTO>(`/tasks/${taskId}/pause`, { method: 'POST' });
+    },
+
+    resumeTask(taskId: string): Promise<ApiResponse<TaskDTO>> {
+      return requester.requestJson<TaskDTO>(`/tasks/${taskId}/resume`, { method: 'POST' });
+    },
+
     // ===== Admin APIs =====
 
     getAdminDashboardStats(): Promise<ApiResponse<AdminDashboardStatsDTO>> {

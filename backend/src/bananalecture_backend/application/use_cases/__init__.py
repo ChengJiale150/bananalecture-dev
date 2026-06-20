@@ -8,10 +8,12 @@ from bananalecture_backend.application.use_cases.media import (
 )
 from bananalecture_backend.application.use_cases.tasks import (
     CancelTaskUseCase,
+    PauseTaskUseCase,
     QueueBatchAudioGenerationUseCase,
     QueueBatchDialogueGenerationUseCase,
     QueueBatchImageGenerationUseCase,
     QueueProjectVideoGenerationUseCase,
+    ResumeTaskUseCase,
 )
 
 __all__ = [
@@ -22,8 +24,10 @@ __all__ = [
     "GenerateSlideImageUseCase",
     "GetSlideImageFileUseCase",
     "ModifySlideImageUseCase",
+    "PauseTaskUseCase",
     "QueueBatchAudioGenerationUseCase",
     "QueueBatchDialogueGenerationUseCase",
     "QueueBatchImageGenerationUseCase",
     "QueueProjectVideoGenerationUseCase",
+    "ResumeTaskUseCase",
 ]

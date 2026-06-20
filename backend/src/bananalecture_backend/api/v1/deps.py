@@ -30,10 +30,12 @@ from bananalecture_backend.application.use_cases import (
     GenerateSlideImageUseCase,
     GetSlideImageFileUseCase,
     ModifySlideImageUseCase,
+    PauseTaskUseCase,
     QueueBatchAudioGenerationUseCase,
     QueueBatchDialogueGenerationUseCase,
     QueueBatchImageGenerationUseCase,
     QueueProjectVideoGenerationUseCase,
+    ResumeTaskUseCase,
 )
 from bananalecture_backend.clients.audio_generation import build_audio_generation_client
 from bananalecture_backend.clients.dialogue_generation import build_dialogue_generation_client
@@ -366,6 +368,41 @@ def get_cancel_task_use_case(
     return CancelTaskUseCase(session, runtime, settings)
 
 
+def get_pause_task_use_case(
+    session: DBSessionDep,
+    runtime: RuntimeDep,
+    settings: SettingsDep,
+) -> PauseTaskUseCase:
+    return PauseTaskUseCase(session, runtime, settings)
+
+
+def get_resume_task_use_case(
+    context: AppContextDep,
+    image_generator: ImageGeneratorDep,
+    dialogue_generator: DialogueGeneratorDep,
+    prompt_strategy: DialoguePromptStrategyDep,
+    audio_synthesizer: AudioSynthesizerDep,
+    audio_processor: AudioProcessorDep,
+    audio_cue_strategy: AudioCueStrategyDep,
+    video_renderer: VideoRendererDep,
+    asset_store: AssetStoreDep,
+) -> ResumeTaskUseCase:
+    return ResumeTaskUseCase(
+        context.session,
+        context.runtime,
+        context.session_factory,
+        image_generator,
+        dialogue_generator,
+        prompt_strategy,
+        audio_synthesizer,
+        audio_processor,
+        audio_cue_strategy,
+        video_renderer,
+        asset_store,
+        context.settings,
+    )
+
+
 GenerateSlideImageUseCaseDep = Annotated[GenerateSlideImageUseCase, Depends(get_generate_slide_image_use_case)]
 ModifySlideImageUseCaseDep = Annotated[ModifySlideImageUseCase, Depends(get_modify_slide_image_use_case)]
 GetSlideImageFileUseCaseDep = Annotated[GetSlideImageFileUseCase, Depends(get_slide_image_file_use_case)]
@@ -395,3 +432,5 @@ QueueProjectVideoGenerationUseCaseDep = Annotated[
     Depends(get_queue_project_video_generation_use_case),
 ]
 CancelTaskUseCaseDep = Annotated[CancelTaskUseCase, Depends(get_cancel_task_use_case)]
+PauseTaskUseCaseDep = Annotated[PauseTaskUseCase, Depends(get_pause_task_use_case)]
+ResumeTaskUseCaseDep = Annotated[ResumeTaskUseCase, Depends(get_resume_task_use_case)]

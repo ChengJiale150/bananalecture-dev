@@ -97,11 +97,12 @@ export const GENERATION_SESSION_MODES = ['pipeline', 'single-stage'] as const;
 export const GENERATION_STAGE_STATUSES = [
   'pending',
   'running',
+  'paused',
   'completed',
   'failed',
   'cancelled',
 ] as const;
-export const GENERATION_SESSION_STATUSES = ['running', 'completed', 'failed', 'cancelled'] as const;
+export const GENERATION_SESSION_STATUSES = ['running', 'paused', 'completed', 'failed', 'cancelled'] as const;
 
 export type GenerationStage = (typeof GENERATION_STAGES)[number];
 export type GenerationSessionMode = (typeof GENERATION_SESSION_MODES)[number];

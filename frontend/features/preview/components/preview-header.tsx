@@ -5,6 +5,8 @@ import {
   FileText,
   Image as ImageIcon,
   Loader2,
+  Pause,
+  Play,
   RefreshCw,
   Settings,
   Sparkles,
@@ -19,12 +21,16 @@ import type { GenerationSessionState, GenerationStage } from '@/features/project
 
 interface PreviewHeaderProps {
   isGeneratingAll: boolean;
+  isPaused: boolean;
+  isResumable: boolean;
   isRefreshing: boolean;
   generationSession: GenerationSessionState | null;
   overallGenerationProgress: number;
   hasVideo: boolean;
   handleStopGeneration: () => void;
   handleGenerateAll: () => void;
+  handlePauseGeneration: () => void;
+  handleResumeGeneration: () => void;
   handleStartStageGeneration: (stage: GenerationStage) => void;
   handleDownloadVideo: () => void;
   handleForceRefresh: () => Promise<void>;
@@ -39,12 +45,16 @@ const ADVANCED_ACTIONS: Array<{ stage: GenerationStage; label: string; icon: typ
 
 export function PreviewHeader({
   isGeneratingAll,
+  isPaused,
+  isResumable,
   isRefreshing,
   generationSession,
   overallGenerationProgress,
   hasVideo,
   handleStopGeneration,
   handleGenerateAll,
+  handlePauseGeneration,
+  handleResumeGeneration,
   handleStartStageGeneration,
   handleDownloadVideo,
   handleForceRefresh,
@@ -57,9 +67,11 @@ export function PreviewHeader({
       ? 'bg-red-500'
       : generationSession?.status === 'cancelled'
         ? 'bg-gray-400'
-        : generationSession?.status === 'completed'
-          ? 'bg-green-500'
-          : 'bg-[var(--banana-blue)]';
+        : generationSession?.status === 'paused'
+          ? 'bg-amber-500'
+          : generationSession?.status === 'completed'
+            ? 'bg-green-500'
+            : 'bg-[var(--banana-blue)]';
 
   return (
     <header className="bg-white border-b-4 border-gray-900 shadow-sm flex-none z-10 relative">
@@ -72,18 +84,31 @@ export function PreviewHeader({
           >
             <ArrowLeft size={18} />
           </Link>
-          <button
-            onClick={handleGenerateAll}
-            disabled={isGeneratingAll}
-            className={`flex items-center gap-2 px-6 py-3 text-white font-black rounded-full border-2 border-gray-900 transition-all shadow-[3px_3px_0px_rgba(0,0,0,1)] ${
-              isGeneratingAll
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-[var(--banana-blue)] hover:brightness-110'
-            }`}
-          >
-            <Sparkles size={18} />
-            {isGeneratingAll ? '生成进行中' : '一键生成'}
-          </button>
+          {isResumable ? (
+            <button
+              onClick={handleResumeGeneration}
+              className="flex items-center gap-2 px-6 py-3 text-white font-black rounded-full border-2 border-gray-900 transition-all shadow-[3px_3px_0px_rgba(0,0,0,1)] bg-emerald-500 hover:brightness-110"
+            >
+              <Play size={18} fill="currentColor" />
+              继续生成
+            </button>
+          ) : isGeneratingAll ? (
+            <button
+              onClick={handlePauseGeneration}
+              className="flex items-center gap-2 px-6 py-3 text-white font-black rounded-full border-2 border-gray-900 transition-all shadow-[3px_3px_0px_rgba(0,0,0,1)] bg-amber-500 hover:brightness-110"
+            >
+              <Pause size={18} fill="currentColor" />
+              暂停
+            </button>
+          ) : (
+            <button
+              onClick={handleGenerateAll}
+              className="flex items-center gap-2 px-6 py-3 text-white font-black rounded-full border-2 border-gray-900 transition-all shadow-[3px_3px_0px_rgba(0,0,0,1)] bg-[var(--banana-blue)] hover:brightness-110"
+            >
+              <Sparkles size={18} />
+              一键生成
+            </button>
+          )}
           <button
             onClick={handleDownloadVideo}
             disabled={!hasVideo}

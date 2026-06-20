@@ -1,11 +1,12 @@
 import asyncio
-from datetime import UTC
+from datetime import UTC, timedelta
 
 import pytest
 
-from bananalecture_backend.application.use_cases.tasks import CancelTaskUseCase, launch_task
+from bananalecture_backend.application.use_cases.tasks import CancelTaskUseCase, PauseTaskUseCase, launch_task
 from bananalecture_backend.core.config import Settings
 from bananalecture_backend.core.errors import NotFoundError
+from bananalecture_backend.core.time import utc_now
 from bananalecture_backend.db.repositories import TaskRepository
 from bananalecture_backend.infrastructure.task_runtime import InMemoryBackgroundTaskRunner
 from bananalecture_backend.schemas.project import CreateProjectRequest
@@ -222,3 +223,199 @@ async def test_launch_task_marks_task_cancelled_when_runtime_cancels_it(
     assert stored.status == TaskStatus.CANCELLED.value
     assert stored.error_message == "Task cancelled"
     assert task.id not in runtime._tasks
+
+
+# ----- Pause tests -----
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_mark_paused_changes_running_task_to_paused(db_session) -> None:
+    project_id = await _create_project(db_session)
+    service = TaskRecordService(db_session)
+    task = await service.create_task(project_id, TaskType.IMAGE_GENERATION, 3)
+    await service.mark_running(task.id)
+
+    await service.mark_paused(task.id)
+
+    stored = await service.tasks.get(task.id)
+    assert stored is not None
+    assert stored.status == TaskStatus.PAUSED.value
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_mark_paused_skips_cancelled_or_completed_tasks(db_session) -> None:
+    project_id = await _create_project(db_session)
+    service = TaskRecordService(db_session)
+    task = await service.create_task(project_id, TaskType.DIALOGUE_GENERATION, 2)
+
+    # Completed task
+    stored = await service.tasks.get(task.id)
+    assert stored is not None
+    stored.status = TaskStatus.COMPLETED.value
+    await db_session.commit()
+    await service.mark_paused(task.id)
+    refreshed = await service.tasks.get(task.id)
+    assert refreshed is not None
+    assert refreshed.status == TaskStatus.COMPLETED.value
+
+    # Cancelled task
+    task2 = await service.create_task(project_id, TaskType.DIALOGUE_GENERATION, 2)
+    stored2 = await service.tasks.get(task2.id)
+    assert stored2 is not None
+    stored2.status = TaskStatus.CANCELLED.value
+    await db_session.commit()
+    await service.mark_paused(task2.id)
+    refreshed2 = await service.tasks.get(task2.id)
+    assert refreshed2 is not None
+    assert refreshed2.status == TaskStatus.CANCELLED.value
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_mark_running_accepts_paused_and_failed_status(db_session) -> None:
+    project_id = await _create_project(db_session)
+    service = TaskRecordService(db_session)
+    task = await service.create_task(project_id, TaskType.IMAGE_GENERATION, 3)
+
+    # PENDING → RUNNING (original behavior)
+    await service.mark_running(task.id)
+    stored = await service.tasks.get(task.id)
+    assert stored is not None
+    assert stored.status == TaskStatus.RUNNING.value
+
+    # RUNNING → PAUSED → RUNNING
+    await service.mark_paused(task.id)
+    await service.mark_running(task.id)
+    stored = await service.tasks.get(task.id)
+    assert stored is not None
+    assert stored.status == TaskStatus.RUNNING.value
+
+    # FAILED → RUNNING
+    stored.status = TaskStatus.FAILED.value
+    await db_session.commit()
+    await service.mark_running(task.id)
+    stored = await service.tasks.get(task.id)
+    assert stored is not None
+    assert stored.status == TaskStatus.RUNNING.value
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_pause_task_use_case_marks_running_task_paused(db_session, test_settings: Settings) -> None:
+    project_id = await _create_project(db_session)
+    service = TaskRecordService(db_session)
+    task = await service.create_task(project_id, TaskType.AUDIO_GENERATION, 3)
+    await service.mark_running(task.id)
+    runtime = InMemoryBackgroundTaskRunner()
+    runtime.start(task.id, asyncio.sleep(10))
+
+    paused = await PauseTaskUseCase(db_session, runtime, test_settings).execute(task.id)
+
+    assert paused.status == TaskStatus.PAUSED
+    stored = await service.tasks.get(task.id)
+    assert stored is not None
+    assert stored.status == TaskStatus.PAUSED.value
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_pause_task_use_case_no_ops_for_terminal_tasks(db_session, test_settings: Settings) -> None:
+    project_id = await _create_project(db_session)
+    service = TaskRecordService(db_session)
+    runtime = InMemoryBackgroundTaskRunner()
+
+    # Completed task
+    task = await service.create_task(project_id, TaskType.IMAGE_GENERATION, 2)
+    stored = await service.tasks.get(task.id)
+    assert stored is not None
+    stored.status = TaskStatus.COMPLETED.value
+    await db_session.commit()
+    result = await PauseTaskUseCase(db_session, runtime, test_settings).execute(task.id)
+    assert result.status == TaskStatus.COMPLETED
+
+    # Failed task
+    task2 = await service.create_task(project_id, TaskType.IMAGE_GENERATION, 2)
+    stored2 = await service.tasks.get(task2.id)
+    assert stored2 is not None
+    stored2.status = TaskStatus.FAILED.value
+    await db_session.commit()
+    result2 = await PauseTaskUseCase(db_session, runtime, test_settings).execute(task2.id)
+    assert result2.status == TaskStatus.FAILED
+
+
+# ----- Runtime pause/resume tests -----
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_runtime_pause_and_resume_controls_event(db_session) -> None:
+    runtime = InMemoryBackgroundTaskRunner()
+
+    async def dummy() -> None:
+        pass
+
+    runtime.start("task-1", dummy())
+    await asyncio.sleep(0)
+
+    # Initially event is set (not paused)
+    assert runtime.pause("task-1") is True
+    # Resume unblocks
+    assert runtime.resume("task-1") is True
+    # Pausing non-existent task returns False
+    assert runtime.pause("task-none") is False
+    assert runtime.resume("task-none") is False
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_wait_if_paused_does_not_block_when_not_paused(db_session) -> None:
+    runtime = InMemoryBackgroundTaskRunner()
+
+    async def dummy() -> None:
+        pass
+
+    runtime.start("task-1", dummy())
+    await asyncio.sleep(0)
+
+    # When not paused, wait_if_paused returns immediately
+    await runtime.wait_if_paused("task-1")
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_wait_if_paused_blocks_and_resume_unblocks(db_session) -> None:
+    runtime = InMemoryBackgroundTaskRunner()
+    task_id = "task-blocking"
+
+    # Use a work coroutine that stays alive
+    work_running = asyncio.Event()
+
+    async def long_work() -> None:
+        work_running.set()
+        await asyncio.sleep(300)  # Keep alive
+
+    runtime.start(task_id, long_work())
+    await work_running.wait()
+
+    # Now that task is alive, pause it (clear the event)
+    runtime.pause(task_id)
+
+    unblocked = asyncio.Event()
+
+    async def waiter() -> None:
+        await runtime.wait_if_paused(task_id)
+        unblocked.set()
+
+    waiter_task = asyncio.create_task(waiter())
+    await asyncio.sleep(0.05)
+    assert not unblocked.is_set()
+
+    # Resume unblocks it
+    runtime.resume(task_id)
+    await asyncio.wait_for(unblocked.wait(), timeout=1.0)
+    assert unblocked.is_set()
+    waiter_task.cancel()
+    # Clean up the running task
+    runtime.cancel(task_id)
