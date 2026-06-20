@@ -28,6 +28,7 @@ function PreviewContent() {
     isDialogueActionPending,
     generationSession,
     overallGenerationProgress,
+    estimatedRemainingSeconds,
     currentSlide,
     displayDialogues,
     currentSlideImageUrl,
@@ -77,6 +78,7 @@ function PreviewContent() {
         isRefreshing={isRefreshing}
         generationSession={generationSession}
         overallGenerationProgress={overallGenerationProgress}
+        estimatedRemainingSeconds={estimatedRemainingSeconds}
         hasVideo={Boolean(projectVideoPath)}
         handleStopGeneration={handleStopGeneration}
         handleGenerateAll={handleGenerateAll}

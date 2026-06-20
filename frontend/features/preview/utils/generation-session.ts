@@ -47,6 +47,7 @@ export function createGenerationSession(
           status: task ? mapTaskStatusToStageStatus(task.status) : 'running',
           progress: task ? getTaskProgressPercent(task) : 0,
           taskId: task?.id,
+          startedAt: Date.now(),
         }
       : stageState
   );
@@ -120,6 +121,7 @@ export function attachTaskToGenerationStage(
                 ? 100
                 : getTaskProgressPercent(task),
             taskId: task.id,
+            startedAt: item.startedAt ?? Date.now(),
           }
         : item
     ),
@@ -167,7 +169,7 @@ export function advanceGenerationSession(
     activeTask: null,
     stages: session.stages.map(stage =>
       stage.stage === nextStage
-        ? { ...stage, status: 'running', progress: 0, taskId: undefined }
+        ? { ...stage, status: 'running', progress: 0, taskId: undefined, startedAt: Date.now() }
         : stage
     ),
     updatedAt: Date.now(),
@@ -249,6 +251,55 @@ export function getGenerationOverallProgress(session: GenerationSessionState | n
 
     return total;
   }, 0);
+}
+
+const ESTIMATED_SECONDS_PER_STEP: Record<GenerationStage, number> = {
+  images: 90,
+  dialogues: 60,
+  audio: 30,
+  video: 10,
+};
+
+export function getEstimatedRemainingSeconds(
+  session: GenerationSessionState | null,
+  activeTask: TaskProgress | null | undefined
+): number | null {
+  if (!session || session.status !== 'running') {
+    return null;
+  }
+
+  let totalRemaining = 0;
+  const now = Date.now();
+
+  for (const stage of session.stages) {
+    if (stage.status === 'completed' || stage.status === 'failed' || stage.status === 'cancelled') {
+      continue;
+    }
+
+    const perStep = ESTIMATED_SECONDS_PER_STEP[stage.stage];
+
+    if (stage.status === 'running' && activeTask && activeTask.totalSteps > 0) {
+      const remainingSteps = activeTask.totalSteps - activeTask.currentStep;
+      if (remainingSteps <= 0) {
+        continue;
+      }
+
+      if (stage.startedAt && activeTask.currentStep > 0) {
+        const elapsedSeconds = (now - stage.startedAt) / 1000;
+        const actualRate = elapsedSeconds / activeTask.currentStep;
+        totalRemaining += actualRate * remainingSteps;
+      } else {
+        totalRemaining += perStep * remainingSteps;
+      }
+    } else if (stage.status === 'pending') {
+      const estimatedSteps = activeTask?.totalSteps ?? 1;
+      totalRemaining += perStep * estimatedSteps;
+    } else if (stage.status === 'running' && !activeTask) {
+      totalRemaining += perStep;
+    }
+  }
+
+  return Math.ceil(totalRemaining);
 }
 
 export function getCurrentGenerationStageState(session: GenerationSessionState | null) {

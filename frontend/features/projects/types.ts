@@ -115,6 +115,7 @@ export interface GenerationStageState {
   status: GenerationStageStatus;
   progress: number;
   taskId?: string;
+  startedAt?: number;
 }
 
 export interface GenerationSessionState {

@@ -40,6 +40,7 @@ import {
   createGenerationSession,
   finalizeGenerationSession,
   getCurrentGenerationStageState,
+  getEstimatedRemainingSeconds,
   getGenerationOverallProgress,
   getGenerationStageLabel,
   getNextGenerationStage,
@@ -830,6 +831,11 @@ export function usePreviewState(
     [generationSession]
   );
 
+  const estimatedRemainingSeconds = useMemo(
+    () => getEstimatedRemainingSeconds(generationSession, generationSession?.activeTask ?? null),
+    [generationSession]
+  );
+
   const genSession = generationSession;
   return {
     plan,
@@ -844,6 +850,7 @@ export function usePreviewState(
     isDialogueActionPending: activeActionKey?.startsWith('dialogue-') ?? false,
     generationSession: genSession,
     overallGenerationProgress,
+    estimatedRemainingSeconds,
     currentSlide,
     displayDialogues,
     currentSlideImageUrl: slideImageUrl,

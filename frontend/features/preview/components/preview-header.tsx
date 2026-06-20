@@ -15,7 +15,7 @@ import {
   Volume2,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useBasePath } from '@/contexts/base-path-context';
 import type { GenerationSessionState, GenerationStage } from '@/features/projects/types';
 
@@ -26,6 +26,7 @@ interface PreviewHeaderProps {
   isRefreshing: boolean;
   generationSession: GenerationSessionState | null;
   overallGenerationProgress: number;
+  estimatedRemainingSeconds: number | null;
   hasVideo: boolean;
   handleStopGeneration: () => void;
   handleGenerateAll: () => void;
@@ -58,10 +59,25 @@ export function PreviewHeader({
   handleStartStageGeneration,
   handleDownloadVideo,
   handleForceRefresh,
+  estimatedRemainingSeconds,
 }: PreviewHeaderProps) {
   const { basePath } = useBasePath();
   const [showAdvancedTools, setShowAdvancedTools] = useState(false);
   const progressValue = generationSession ? Math.round(overallGenerationProgress) : 0;
+
+  const remainingTimeText = useMemo(() => {
+    if (estimatedRemainingSeconds == null || estimatedRemainingSeconds <= 0) return null;
+    const s = estimatedRemainingSeconds;
+    if (s < 60) return `约${s}秒`;
+    if (s < 3600) {
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      return sec > 0 ? `约${m}分${sec}秒` : `约${m}分钟`;
+    }
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return `约${h}时${m}分`;
+  }, [estimatedRemainingSeconds]);
   const progressTone =
     generationSession?.status === 'failed'
       ? 'bg-red-500'
@@ -188,6 +204,11 @@ export function PreviewHeader({
             <div className="min-w-14 text-right text-sm font-black text-gray-900">
               {progressValue}%
             </div>
+            {remainingTimeText && (
+              <div className="text-sm font-bold text-gray-600 whitespace-nowrap">
+                {remainingTimeText}
+              </div>
+            )}
             {isGeneratingAll && (
               <button
                 onClick={handleStopGeneration}
