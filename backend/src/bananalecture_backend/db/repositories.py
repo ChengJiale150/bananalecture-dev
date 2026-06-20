@@ -116,17 +116,16 @@ class ProjectRepository:
             order_col = subq.c.project_count
         else:
             order_col = subq.c.last_active_at
-        if descending:
-            order_col = order_col.desc()
+        order: Any = order_col.desc() if descending else order_col
 
         query = (
             select(subq.c.user_id, subq.c.project_count, subq.c.last_active_at)
-            .order_by(order_col)
+            .order_by(order)
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
         rows = (await self.session.execute(query)).all()
-        return list(rows), total
+        return [tuple(row) for row in rows], total
 
 
 class SlideRepository:
