@@ -8,6 +8,11 @@ import type {
   AddDialogueRequest,
   AddSlideDataDTO,
   AddSlideRequest,
+  AdminDashboardStatsDTO,
+  AdminProjectListDataDTO,
+  AdminUserListDTO,
+  AdminUsersQuery,
+  AdminProjectsQuery,
   ApiResponse,
   CreateProjectRequest,
   CreateSlidesDataDTO,
@@ -16,6 +21,8 @@ import type {
   DialoguesListDataDTO,
   GenerateDialoguesDataDTO,
   ListProjectsQuery,
+  LogListDTO,
+  LogQuery,
   ModifyImageRequest,
   ProjectDTO,
   ProjectDetailDTO,
@@ -300,6 +307,40 @@ export function createBananaLectureApiClient(options: BananaLectureApiClientOpti
 
     cancelTask(taskId: string): Promise<ApiResponse<TaskDTO>> {
       return requester.requestJson<TaskDTO>(`/tasks/${taskId}`, { method: 'DELETE' });
+    },
+
+    // ===== Admin APIs =====
+
+    getAdminDashboardStats(): Promise<ApiResponse<AdminDashboardStatsDTO>> {
+      return requester.requestJson<AdminDashboardStatsDTO>('/system/admin/dashboard', { method: 'GET' });
+    },
+
+    listAdminUsers(query?: AdminUsersQuery): Promise<ApiResponse<AdminUserListDTO>> {
+      return requester.requestJson<AdminUserListDTO>('/system/admin/users', {
+        method: 'GET',
+        query: query as QueryParams | undefined,
+      });
+    },
+
+    listAdminProjects(query?: AdminProjectsQuery): Promise<ApiResponse<AdminProjectListDataDTO>> {
+      return requester.requestJson<AdminProjectListDataDTO>('/system/admin/projects', {
+        method: 'GET',
+        query: query as QueryParams | undefined,
+      });
+    },
+
+    getSystemLogs(query?: LogQuery): Promise<ApiResponse<LogListDTO>> {
+      return requester.requestJson<LogListDTO>('/system/logs/global', {
+        method: 'GET',
+        query: query as QueryParams | undefined,
+      });
+    },
+
+    getProjectLogs(projectId: string, query?: LogQuery): Promise<ApiResponse<LogListDTO>> {
+      return requester.requestJson<LogListDTO>(`/system/logs/project/${projectId}`, {
+        method: 'GET',
+        query: query as QueryParams | undefined,
+      });
     },
   };
 }

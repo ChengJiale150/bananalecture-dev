@@ -198,3 +198,95 @@ export interface ListProjectsQuery {
   sort_by?: string;
   order?: 'asc' | 'desc';
 }
+
+// Admin Dashboard
+export interface AdminTaskStatsDTO {
+  total: number;
+  pending: number;
+  running: number;
+  completed: number;
+  failed: number;
+  cancelled: number;
+}
+
+export interface AdminDashboardStatsDTO {
+  total_users: number;
+  total_projects: number;
+  total_slides: number;
+  total_dialogues: number;
+  tasks: AdminTaskStatsDTO;
+}
+
+// Admin User List
+export interface AdminUserItemDTO {
+  user_id: string;
+  project_count: number;
+  last_active_at: string;
+}
+
+export interface AdminUserListDTO {
+  items: AdminUserItemDTO[];
+  pagination: PaginationDTO;
+}
+
+// Admin Project List
+export interface AdminProjectItemDTO {
+  id: string;
+  user_id: string;
+  name: string;
+  messages: string | null;
+  video_path: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminProjectListDataDTO {
+  items: AdminProjectItemDTO[];
+  pagination: PaginationDTO;
+}
+
+// Log Entry
+export interface LogEntryDTO {
+  timestamp: string;
+  level: string;
+  logger: string;
+  message: string;
+  event: string | null;
+  context: Record<string, unknown>;
+  file: string | null;
+  function: string | null;
+  line: number | null;
+}
+
+export interface LogListDTO {
+  total: number;
+  offset: number;
+  limit: number;
+  items: LogEntryDTO[];
+}
+
+// Admin Query Params
+export interface AdminUsersQuery {
+  page?: number;
+  page_size?: number;
+  sort_by?: 'user_id' | 'project_count' | 'last_active_at';
+  order?: 'asc' | 'desc';
+}
+
+export interface AdminProjectsQuery {
+  user_id?: string;
+  page?: number;
+  page_size?: number;
+  sort_by?: 'created_at' | 'updated_at' | 'name';
+  order?: 'asc' | 'desc';
+}
+
+export interface LogQuery {
+  level?: string;
+  event?: string;
+  start_time?: string;
+  end_time?: string;
+  limit?: number;
+  offset?: number;
+  order?: 'asc' | 'desc';
+}

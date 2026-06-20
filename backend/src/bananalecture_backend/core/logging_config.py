@@ -26,12 +26,21 @@ if TYPE_CHECKING:
 LoguruLogger = Any
 
 
+_STDLIB_TO_LOGURU = {
+    logging.DEBUG: "DEBUG",
+    logging.INFO: "INFO",
+    logging.WARNING: "WARNING",
+    logging.ERROR: "ERROR",
+    logging.CRITICAL: "CRITICAL",
+}
+
+
 class InterceptHandler(logging.Handler):
     """Redirect standard-library logging records into loguru."""
 
     def emit(self, record: logging.LogRecord) -> None:
         """Map the stdlib record to a loguru logger call."""
-        level = record.levelno
+        level_name = _STDLIB_TO_LOGURU.get(record.levelno, "INFO")
 
         frame: types.FrameType | None = logging.currentframe()
         depth = 2
@@ -40,7 +49,7 @@ class InterceptHandler(logging.Handler):
             depth += 1
 
         logger.opt(depth=depth, exception=record.exc_info).log(
-            level,
+            level_name,
             record.getMessage(),
         )
 
@@ -86,7 +95,7 @@ def setup_logging(settings: Settings) -> None:
 
     # Intercept standard-library loggers (uvicorn, sqlalchemy, etc.).
     logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
-    for logger_name in ("uvicorn", "uvicorn.access", "sqlalchemy.engine", "fastapi"):
+    for logger_name in ("uvicorn", "sqlalchemy.engine", "fastapi"):
         stdlib_logger = logging.getLogger(logger_name)
         stdlib_logger.handlers = [InterceptHandler()]
         stdlib_logger.propagate = False

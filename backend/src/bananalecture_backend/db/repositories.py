@@ -55,6 +55,79 @@ class ProjectRepository:
         for field_name, field_value in values.items():
             setattr(project, field_name, field_value)
 
+    async def count_all(self) -> int:
+        query = select(func.count()).select_from(ProjectModel)
+        return int((await self.session.execute(query)).scalar_one())
+
+    async def count_distinct_users(self) -> int:
+        query = select(func.count(func.distinct(ProjectModel.user_id))).select_from(ProjectModel)
+        return int((await self.session.execute(query)).scalar_one())
+
+    async def list_all(
+        self,
+        page: int,
+        page_size: int,
+        user_id: str | None,
+        sort_column: str,
+        descending: bool,
+    ) -> tuple[list[ProjectModel], int]:
+        base_filter = [ProjectModel.user_id == user_id] if user_id else []
+        count_query = select(func.count()).select_from(ProjectModel)
+        if base_filter:
+            count_query = count_query.where(*base_filter)
+        total = int((await self.session.execute(count_query)).scalar_one())
+
+        order_column = getattr(ProjectModel, sort_column)
+        if descending:
+            order_column = order_column.desc()
+
+        query = (
+            select(ProjectModel)
+            .where(*base_filter)
+            .order_by(order_column)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        rows = (await self.session.execute(query)).scalars().all()
+        return list(rows), total
+
+    async def list_distinct_users(
+        self,
+        page: int,
+        page_size: int,
+        sort_by: str,
+        descending: bool,
+    ) -> tuple[list[tuple[str, int, Any]], int]:
+        subq = (
+            select(
+                ProjectModel.user_id,
+                func.count().label("project_count"),
+                func.max(ProjectModel.updated_at).label("last_active_at"),
+            )
+            .group_by(ProjectModel.user_id)
+            .subquery()
+        )
+        count_query = select(func.count()).select_from(subq)
+        total = int((await self.session.execute(count_query)).scalar_one())
+
+        if sort_by == "user_id":
+            order_col = subq.c.user_id
+        elif sort_by == "project_count":
+            order_col = subq.c.project_count
+        else:
+            order_col = subq.c.last_active_at
+        if descending:
+            order_col = order_col.desc()
+
+        query = (
+            select(subq.c.user_id, subq.c.project_count, subq.c.last_active_at)
+            .order_by(order_col)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        rows = (await self.session.execute(query)).all()
+        return list(rows), total
+
 
 class SlideRepository:
     """Data access for slide entities."""
@@ -93,6 +166,10 @@ class SlideRepository:
     async def update(self, slide: SlideModel, values: dict[str, Any]) -> None:
         for field_name, field_value in values.items():
             setattr(slide, field_name, field_value)
+
+    async def count_all(self) -> int:
+        query = select(func.count()).select_from(SlideModel)
+        return int((await self.session.execute(query)).scalar_one())
 
 
 class DialogueRepository:
@@ -133,6 +210,10 @@ class DialogueRepository:
         for field_name, field_value in values.items():
             setattr(dialogue, field_name, field_value)
 
+    async def count_all(self) -> int:
+        query = select(func.count()).select_from(DialogueModel)
+        return int((await self.session.execute(query)).scalar_one())
+
 
 class TaskRepository:
     """Data access for task entities."""
@@ -149,3 +230,12 @@ class TaskRepository:
     async def update(self, task: TaskModel, values: dict[str, Any]) -> None:
         for field_name, field_value in values.items():
             setattr(task, field_name, field_value)
+
+    async def count_all(self) -> int:
+        query = select(func.count()).select_from(TaskModel)
+        return int((await self.session.execute(query)).scalar_one())
+
+    async def count_by_status(self) -> dict[str, int]:
+        query = select(TaskModel.status, func.count()).group_by(TaskModel.status)
+        rows = (await self.session.execute(query)).all()
+        return {row[0]: int(row[1]) for row in rows}

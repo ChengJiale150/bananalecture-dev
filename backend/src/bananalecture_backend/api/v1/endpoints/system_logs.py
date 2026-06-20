@@ -48,7 +48,46 @@ async def get_global_logs(  # noqa: PLR0913
     items, total = reader.read(
         log_path,
         level=level,
-        logger_name="bananalecture.global",
+        event=event,
+        start_time=start_time,
+        end_time=end_time,
+        limit=limit,
+        offset=offset,
+        reverse=order == "desc",
+    )
+
+    log_list = LogList(total=total, offset=offset, limit=limit, items=items)
+    return {
+        "code": status.HTTP_200_OK,
+        "message": "success",
+        "data": log_list.model_dump(),
+    }
+
+
+@router.get("/system/logs/project/{project_id}")
+async def get_project_logs(  # noqa: PLR0913
+    project_id: str,
+    current_user_id: CurrentUserIdDep,
+    settings: SettingsDep,
+    reader: LogReaderDep,
+    order: OrderQuery = "desc",
+    level: LevelQuery = None,
+    event: EventQuery = None,
+    start_time: StartTimeQuery = None,
+    end_time: EndTimeQuery = None,
+    limit: LimitQuery = 50,
+    offset: OffsetQuery = 0,
+) -> dict[str, object]:
+    """Read project-specific logs.
+
+    Restricted to configured admin users.
+    """
+    require_admin(current_user_id, settings)
+
+    log_path = Path(settings.STORAGE.DATA_DIR).expanduser().resolve() / "projects" / project_id / "logs" / "project.log"  # noqa: ASYNC240
+    items, total = reader.read(
+        log_path,
+        level=level,
         event=event,
         start_time=start_time,
         end_time=end_time,

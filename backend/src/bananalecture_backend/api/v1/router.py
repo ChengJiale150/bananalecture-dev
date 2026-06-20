@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from bananalecture_backend.api.v1.endpoints import (
+    admin,
     audio,
     base,
     dialogues,
@@ -13,6 +14,7 @@ from bananalecture_backend.api.v1.endpoints import (
 )
 
 api_router = APIRouter()
+api_router.include_router(admin.router, tags=["admin"])
 api_router.include_router(base.router, tags=["base"])
 api_router.include_router(projects.router, tags=["projects"])
 api_router.include_router(slides.router, tags=["slides"])
