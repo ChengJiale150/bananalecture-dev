@@ -1,3 +1,9 @@
+from bananalecture_backend.application.use_cases.generation import (
+    CancelPipelineUseCase,
+    PausePipelineUseCase,
+    ResumePipelineUseCase,
+    RunPipelineUseCase,
+)
 from bananalecture_backend.application.use_cases.media import (
     GenerateProjectVideoUseCase,
     GenerateSlideAudioUseCase,
@@ -17,6 +23,7 @@ from bananalecture_backend.application.use_cases.tasks import (
 )
 
 __all__ = [
+    "CancelPipelineUseCase",
     "CancelTaskUseCase",
     "GenerateProjectVideoUseCase",
     "GenerateSlideAudioUseCase",
@@ -24,10 +31,13 @@ __all__ = [
     "GenerateSlideImageUseCase",
     "GetSlideImageFileUseCase",
     "ModifySlideImageUseCase",
+    "PausePipelineUseCase",
     "PauseTaskUseCase",
     "QueueBatchAudioGenerationUseCase",
     "QueueBatchDialogueGenerationUseCase",
     "QueueBatchImageGenerationUseCase",
     "QueueProjectVideoGenerationUseCase",
+    "ResumePipelineUseCase",
     "ResumeTaskUseCase",
+    "RunPipelineUseCase",
 ]

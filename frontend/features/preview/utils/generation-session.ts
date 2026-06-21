@@ -8,18 +8,12 @@ import type {
 } from '@/features/projects/types';
 import { GENERATION_STAGES } from '@/features/projects/types';
 
-const STORAGE_KEY_PREFIX = 'preview-generation-session';
-
 const STAGE_LABELS: Record<GenerationStage, string> = {
   images: '图片',
   dialogues: '口播稿',
   audio: '音频',
   video: '视频',
 };
-
-export function getGenerationStorageKey(projectId: string) {
-  return `${STORAGE_KEY_PREFIX}:${projectId}`;
-}
 
 export function getGenerationStageLabel(stage: GenerationStage) {
   return STAGE_LABELS[stage];
@@ -348,36 +342,14 @@ function mapTaskStatusToSessionStatus(status: string): GenerationSessionState['s
   }
 }
 
-export function persistGenerationSession(session: GenerationSessionState) {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  window.localStorage.setItem(getGenerationStorageKey(session.projectId), JSON.stringify(session));
+export function persistGenerationSession(_session: GenerationSessionState) {
+  // No-op: generation session is managed server-side
 }
 
-export function loadGenerationSession(projectId: string) {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  const raw = window.localStorage.getItem(getGenerationStorageKey(projectId));
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(raw) as GenerationSessionState;
-  } catch {
-    window.localStorage.removeItem(getGenerationStorageKey(projectId));
-    return null;
-  }
+export function loadGenerationSession(_projectId: string) {
+  return null;
 }
 
-export function clearGenerationSession(projectId: string) {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  window.localStorage.removeItem(getGenerationStorageKey(projectId));
+export function clearGenerationSession(_projectId: string) {
+  // No-op: generation session is managed server-side
 }

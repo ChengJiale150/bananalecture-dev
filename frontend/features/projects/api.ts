@@ -8,6 +8,7 @@ import {
 } from '@/shared/api/banana';
 import type {
   DialogueDTO,
+  GenerationSessionDTO,
   ProjectDetailDTO,
   ProjectListItemDTO,
   SlideDTO,
@@ -18,6 +19,7 @@ import type {
   DialogueEmotion,
   DialogueRole,
   DialogueSpeed,
+  GenerationSessionState,
   GenerationStage,
   ProjectListPage,
   ProjectRecord,
@@ -25,6 +27,10 @@ import type {
   Slide,
   SlideType,
   TaskProgress,
+} from '@/features/projects/types';
+import {
+  GENERATION_STAGES,
+  GENERATION_STAGE_STATUSES,
 } from '@/features/projects/types';
 import {
   DEFAULT_PROJECT_LIST_PAGE,
@@ -392,6 +398,102 @@ export function getGenerationTaskStarter(stage: GenerationStage) {
     case 'video':
       return generateVideo;
   }
+}
+
+const PHASE_INDEX_TO_STAGE: Record<number, GenerationStage> = {
+  0: 'images',
+  1: 'dialogues',
+  2: 'audio',
+  3: 'video',
+};
+
+function mapPhaseStatusToStageStatus(phaseStatus: string): string {
+  switch (phaseStatus) {
+    case 'completed': return 'completed';
+    case 'failed': return 'failed';
+    case 'cancelled': return 'cancelled';
+    case 'paused': return 'paused';
+    default: return 'running';
+  }
+}
+
+function parseTimestamp(value: string | null): number | undefined {
+  if (!value) return undefined;
+  const ts = Date.parse(value);
+  return Number.isNaN(ts) ? undefined : ts;
+}
+
+export function mapGenerationSession(dto: GenerationSessionDTO): GenerationSessionState {
+  const currentStage = dto.current_phase >= 0 && dto.current_phase <= 3
+    ? PHASE_INDEX_TO_STAGE[dto.current_phase]
+    : null;
+
+  const phases = dto.phases.map(p => ({
+    stage: p.phase as GenerationStage,
+    label: p.label,
+    status: mapPhaseStatusToStageStatus(p.status) as GenerationSessionState['stages'][number]['status'],
+    progress: p.task?.progress ?? 0,
+    taskId: p.task?.task_id ?? undefined,
+    startedAt: parseTimestamp(p.started_at),
+  }));
+
+  const phaseTask = dto.current_phase >= 0 && dto.current_phase < dto.phases.length
+    ? dto.phases[dto.current_phase].task
+    : null;
+
+  const activeTask: TaskProgress | null = phaseTask?.task_id
+    ? {
+        id: phaseTask.task_id,
+        projectId: dto.project_id,
+        type: '',
+        status: phaseTask.status,
+        currentStep: phaseTask.current_step,
+        totalSteps: phaseTask.total_steps,
+        errorMessage: phaseTask.error_message,
+        createdAt: dto.created_at,
+        updatedAt: dto.updated_at,
+      }
+    : null;
+
+  return {
+    mode: 'pipeline',
+    projectId: dto.project_id,
+    status: dto.status as GenerationSessionState['status'],
+    currentStage,
+    stages: phases as GenerationSessionState['stages'],
+    activeTask,
+    errorMessage: dto.error_message,
+    updatedAt: Date.now(),
+  };
+}
+
+export async function startGeneration(projectId: string) {
+  const apiClient = getApiClient();
+  await apiClient.startGeneration(projectId);
+}
+
+export async function getGenerationStatus(projectId: string): Promise<GenerationSessionDTO> {
+  const apiClient = getApiClient();
+  const response = await apiClient.getGeneration(projectId);
+  return response.data;
+}
+
+export async function pauseGeneration(projectId: string): Promise<GenerationSessionDTO> {
+  const apiClient = getApiClient();
+  const response = await apiClient.pauseGeneration(projectId);
+  return response.data;
+}
+
+export async function resumeGeneration(projectId: string): Promise<GenerationSessionDTO> {
+  const apiClient = getApiClient();
+  const response = await apiClient.resumeGeneration(projectId);
+  return response.data;
+}
+
+export async function cancelGeneration(projectId: string): Promise<GenerationSessionDTO> {
+  const apiClient = getApiClient();
+  const response = await apiClient.cancelGeneration(projectId);
+  return response.data;
 }
 
 export async function downloadVideoFile(projectId: string) {

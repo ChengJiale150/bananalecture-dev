@@ -34,6 +34,12 @@ class ProjectModel(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    generation_session: Mapped[GenerationSessionModel | None] = relationship(
+        back_populates="project",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        uselist=False,
+    )
 
 
 class SlideModel(Base):
@@ -100,3 +106,20 @@ class TaskModel(Base):
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime())
 
     project: Mapped[ProjectModel] = relationship(back_populates="tasks")
+
+
+class GenerationSessionModel(Base):
+    """Persistent generation pipeline session entity."""
+
+    __tablename__ = "generation_sessions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    status: Mapped[str] = mapped_column(String(32))
+    current_phase: Mapped[int] = mapped_column(Integer, default=0)
+    current_task_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime())
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime())
+
+    project: Mapped[ProjectModel] = relationship(back_populates="generation_session")

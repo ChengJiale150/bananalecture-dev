@@ -290,3 +290,38 @@ export interface LogQuery {
   offset?: number;
   order?: 'asc' | 'desc';
 }
+
+// Pipeline / Generation Session
+export interface GenerationPhaseTaskDTO {
+  task_id: string | null;
+  status: string;
+  current_step: number;
+  total_steps: number;
+  progress: number;
+  error_message: string | null;
+}
+
+export interface GenerationPhaseDTO {
+  phase: string;
+  label: string;
+  status: string;
+  task: GenerationPhaseTaskDTO;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface GenerationSessionDTO {
+  session_id: string;
+  project_id: string;
+  status: string;
+  current_phase: number;
+  phases: GenerationPhaseDTO[];
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SessionReferenceDTO {
+  session_id: string;
+  project_id: string;
+}

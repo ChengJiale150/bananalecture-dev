@@ -20,6 +20,7 @@ import type {
   DialogueDTO,
   DialoguesListDataDTO,
   GenerateDialoguesDataDTO,
+  GenerationSessionDTO,
   ListProjectsQuery,
   LogListDTO,
   LogQuery,
@@ -31,6 +32,7 @@ import type {
   ReorderDialoguesRequest,
   ReorderSlidesDataDTO,
   ReorderSlidesRequest,
+  SessionReferenceDTO,
   SlideDTO,
   SlidesListDataDTO,
   TaskDTO,
@@ -315,6 +317,28 @@ export function createBananaLectureApiClient(options: BananaLectureApiClientOpti
 
     resumeTask(taskId: string): Promise<ApiResponse<TaskDTO>> {
       return requester.requestJson<TaskDTO>(`/tasks/${taskId}/resume`, { method: 'POST' });
+    },
+
+    // ===== Generation Pipeline APIs =====
+
+    startGeneration(projectId: string): Promise<ApiResponse<SessionReferenceDTO>> {
+      return requester.requestJson<SessionReferenceDTO>(`/projects/${projectId}/generate`, { method: 'POST' });
+    },
+
+    getGeneration(projectId: string): Promise<ApiResponse<GenerationSessionDTO>> {
+      return requester.requestJson<GenerationSessionDTO>(`/projects/${projectId}/generation`, { method: 'GET' });
+    },
+
+    pauseGeneration(projectId: string): Promise<ApiResponse<GenerationSessionDTO>> {
+      return requester.requestJson<GenerationSessionDTO>(`/projects/${projectId}/generation/pause`, { method: 'POST' });
+    },
+
+    resumeGeneration(projectId: string): Promise<ApiResponse<GenerationSessionDTO>> {
+      return requester.requestJson<GenerationSessionDTO>(`/projects/${projectId}/generation/resume`, { method: 'POST' });
+    },
+
+    cancelGeneration(projectId: string): Promise<ApiResponse<GenerationSessionDTO>> {
+      return requester.requestJson<GenerationSessionDTO>(`/projects/${projectId}/generation`, { method: 'DELETE' });
     },
 
     // ===== Admin APIs =====

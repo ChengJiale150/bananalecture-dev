@@ -23,6 +23,7 @@ from bananalecture_backend.application.strategies import (
     DialoguePromptStrategy,
 )
 from bananalecture_backend.application.use_cases import (
+    CancelPipelineUseCase,
     CancelTaskUseCase,
     GenerateProjectVideoUseCase,
     GenerateSlideAudioUseCase,
@@ -30,12 +31,15 @@ from bananalecture_backend.application.use_cases import (
     GenerateSlideImageUseCase,
     GetSlideImageFileUseCase,
     ModifySlideImageUseCase,
+    PausePipelineUseCase,
     PauseTaskUseCase,
     QueueBatchAudioGenerationUseCase,
     QueueBatchDialogueGenerationUseCase,
     QueueBatchImageGenerationUseCase,
     QueueProjectVideoGenerationUseCase,
+    ResumePipelineUseCase,
     ResumeTaskUseCase,
+    RunPipelineUseCase,
 )
 from bananalecture_backend.clients.audio_generation import build_audio_generation_client
 from bananalecture_backend.clients.dialogue_generation import build_dialogue_generation_client
@@ -47,6 +51,7 @@ from bananalecture_backend.infrastructure.storage import StorageService
 from bananalecture_backend.infrastructure.video_processing import build_video_processing_service
 from bananalecture_backend.services.resources import (
     DialogueResourceService,
+    GenerationSessionService,
     ProjectResourceService,
     SlideResourceService,
     TaskRecordService,
@@ -434,3 +439,93 @@ QueueProjectVideoGenerationUseCaseDep = Annotated[
 CancelTaskUseCaseDep = Annotated[CancelTaskUseCase, Depends(get_cancel_task_use_case)]
 PauseTaskUseCaseDep = Annotated[PauseTaskUseCase, Depends(get_pause_task_use_case)]
 ResumeTaskUseCaseDep = Annotated[ResumeTaskUseCase, Depends(get_resume_task_use_case)]
+
+
+# ── Generation Session Service ──
+
+
+def get_generation_session_service(session: DBSessionDep) -> GenerationSessionService:
+    return GenerationSessionService(session)
+
+
+GenerationSessionServiceDep = Annotated[GenerationSessionService, Depends(get_generation_session_service)]
+
+
+# ── Pipeline Use Cases ──
+
+
+def get_run_pipeline_use_case(
+    runtime: RuntimeDep,
+    session_factory: SessionFactoryDep,
+    image_generator: ImageGeneratorDep,
+    dialogue_generator: DialogueGeneratorDep,
+    prompt_strategy: DialoguePromptStrategyDep,
+    audio_synthesizer: AudioSynthesizerDep,
+    audio_processor: AudioProcessorDep,
+    audio_cue_strategy: AudioCueStrategyDep,
+    video_renderer: VideoRendererDep,
+    asset_store: AssetStoreDep,
+    settings: SettingsDep,
+) -> RunPipelineUseCase:
+    return RunPipelineUseCase(
+        runtime,
+        session_factory,
+        image_generator,
+        dialogue_generator,
+        prompt_strategy,
+        audio_synthesizer,
+        audio_processor,
+        audio_cue_strategy,
+        video_renderer,
+        asset_store,
+        settings,
+    )
+
+
+def get_pause_pipeline_use_case(
+    session: DBSessionDep,
+    runtime: RuntimeDep,
+    settings: SettingsDep,
+) -> PausePipelineUseCase:
+    return PausePipelineUseCase(session, runtime, settings)
+
+
+def get_resume_pipeline_use_case(
+    context: AppContextDep,
+    image_generator: ImageGeneratorDep,
+    dialogue_generator: DialogueGeneratorDep,
+    prompt_strategy: DialoguePromptStrategyDep,
+    audio_synthesizer: AudioSynthesizerDep,
+    audio_processor: AudioProcessorDep,
+    audio_cue_strategy: AudioCueStrategyDep,
+    video_renderer: VideoRendererDep,
+    asset_store: AssetStoreDep,
+) -> ResumePipelineUseCase:
+    return ResumePipelineUseCase(
+        context.session,
+        context.runtime,
+        context.session_factory,
+        image_generator,
+        dialogue_generator,
+        prompt_strategy,
+        audio_synthesizer,
+        audio_processor,
+        audio_cue_strategy,
+        video_renderer,
+        asset_store,
+        context.settings,
+    )
+
+
+def get_cancel_pipeline_use_case(
+    session: DBSessionDep,
+    runtime: RuntimeDep,
+    settings: SettingsDep,
+) -> CancelPipelineUseCase:
+    return CancelPipelineUseCase(session, runtime, settings)
+
+
+RunPipelineUseCaseDep = Annotated[RunPipelineUseCase, Depends(get_run_pipeline_use_case)]
+PausePipelineUseCaseDep = Annotated[PausePipelineUseCase, Depends(get_pause_pipeline_use_case)]
+ResumePipelineUseCaseDep = Annotated[ResumePipelineUseCase, Depends(get_resume_pipeline_use_case)]
+CancelPipelineUseCaseDep = Annotated[CancelPipelineUseCase, Depends(get_cancel_pipeline_use_case)]

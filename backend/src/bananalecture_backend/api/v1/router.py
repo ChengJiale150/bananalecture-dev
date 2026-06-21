@@ -5,6 +5,7 @@ from bananalecture_backend.api.v1.endpoints import (
     audio,
     base,
     dialogues,
+    generation,
     image,
     projects,
     slides,
@@ -23,4 +24,5 @@ api_router.include_router(image.router, tags=["image"])
 api_router.include_router(audio.router, tags=["audio"])
 api_router.include_router(video.router, tags=["video"])
 api_router.include_router(tasks.router, tags=["tasks"])
+api_router.include_router(generation.router, tags=["generation"])
 api_router.include_router(system_logs.router, tags=["system"])
