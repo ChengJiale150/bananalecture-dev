@@ -13,6 +13,7 @@ from bananalecture_backend.application.ports import (
     BackgroundTaskRunner,
     DialogueGenerator,
     ImageGenerator,
+    ImagePreprocessor,
     VideoRenderer,
 )
 from bananalecture_backend.application.strategies import AudioCueStrategy, DialoguePromptStrategy
@@ -289,6 +290,7 @@ class QueueProjectVideoGenerationUseCase:
         runtime: BackgroundTaskRunner,
         session_factory: async_sessionmaker[AsyncSession],
         asset_store: AssetStore,
+        image_preprocessor: ImagePreprocessor,
         video_renderer: VideoRenderer,
         settings: Settings,
     ) -> None:
@@ -296,6 +298,7 @@ class QueueProjectVideoGenerationUseCase:
         self.runtime = runtime
         self.session_factory = session_factory
         self.asset_store = asset_store
+        self.image_preprocessor = image_preprocessor
         self.video_renderer = video_renderer
         self.settings = settings
         self.tasks = TaskRecordService(session)
@@ -304,6 +307,7 @@ class QueueProjectVideoGenerationUseCase:
         total_slide_steps = await GenerateProjectVideoUseCase(
             self.session,
             self.asset_store,
+            self.image_preprocessor,
             self.video_renderer,
             self.settings,
         ).validate_inputs(project_id)
@@ -325,6 +329,7 @@ class QueueProjectVideoGenerationUseCase:
                 await GenerateProjectVideoUseCase(
                     session,
                     self.asset_store,
+                    self.image_preprocessor,
                     self.video_renderer,
                     self.settings,
                 ).execute(
@@ -383,6 +388,7 @@ class ResumeTaskUseCase:
         audio_synthesizer: AudioSynthesizer,
         audio_processor: AudioProcessor,
         audio_cue_strategy: AudioCueStrategy,
+        image_preprocessor: ImagePreprocessor,
         video_renderer: VideoRenderer,
         asset_store: AssetStore,
         settings: Settings,
@@ -396,6 +402,7 @@ class ResumeTaskUseCase:
         self.audio_synthesizer = audio_synthesizer
         self.audio_processor = audio_processor
         self.audio_cue_strategy = audio_cue_strategy
+        self.image_preprocessor = image_preprocessor
         self.video_renderer = video_renderer
         self.asset_store = asset_store
         self.settings = settings
@@ -550,6 +557,7 @@ class ResumeTaskUseCase:
     ) -> Callable[[str, async_sessionmaker[AsyncSession]], Awaitable[None]]:
         runtime = self.runtime
         asset_store = self.asset_store
+        image_preprocessor = self.image_preprocessor
         video_renderer = self.video_renderer
         session_factory = self.session_factory
         settings = self.settings
@@ -560,6 +568,7 @@ class ResumeTaskUseCase:
                 await GenerateProjectVideoUseCase(
                     session,
                     asset_store,
+                    image_preprocessor,
                     video_renderer,
                     settings,
                 ).execute(

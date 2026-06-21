@@ -17,6 +17,7 @@ from bananalecture_backend.application.ports import (
     AudioSynthesizer,
     DialogueGenerator,
     ImageGenerator,
+    ImagePreprocessor,
     VideoRenderer,
 )
 from bananalecture_backend.application.strategies import AudioCueStrategy, DialoguePromptContext, DialoguePromptStrategy
@@ -422,11 +423,13 @@ class GenerateProjectVideoUseCase:
         self,
         session: AsyncSession,
         asset_store: AssetStore,
+        image_preprocessor: ImagePreprocessor,
         video_renderer: VideoRenderer,
         settings: Settings,
     ) -> None:
         self.session = session
         self.asset_store = asset_store
+        self.image_preprocessor = image_preprocessor
         self.video_renderer = video_renderer
         self.settings = settings
         self.projects = ProjectRepository(session)
@@ -455,8 +458,17 @@ class GenerateProjectVideoUseCase:
             for index, asset in enumerate(slide_assets, start=1):
                 if before_slide_render is not None:
                     await before_slide_render()
+
+                preprocessed_image = temp_dir / f"{index:03d}_preprocessed.jpg"
+                await self.image_preprocessor.resize_image(
+                    asset.image_path,
+                    preprocessed_image,
+                    self.settings.VIDEO_GENERATION.WIDTH,
+                    self.settings.VIDEO_GENERATION.HEIGHT,
+                )
+
                 clip_path = temp_dir / f"{index:03d}.mp4"
-                await self.video_renderer.render_static_slide_clip(asset.image_path, asset.audio_path, clip_path)
+                await self.video_renderer.render_static_slide_clip(preprocessed_image, asset.audio_path, clip_path)
                 clip_paths.append(clip_path)
                 logger.bind(step=index, slide_id=asset.slide_id).info("video_slide_rendered")
                 if on_slide_rendered is not None:

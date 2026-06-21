@@ -48,6 +48,12 @@ class AudioProcessor(Protocol):
     async def concatenate_mp3_files(self, inputs: list[Path], output: Path) -> None: ...
 
 
+class ImagePreprocessor(Protocol):
+    """Resize images to target dimensions before video rendering."""
+
+    async def resize_image(self, input_path: Path, output_path: Path, width: int, height: int) -> None: ...
+
+
 class VideoRenderer(Protocol):
     """Render slide clips and concatenate them into a final video."""
 

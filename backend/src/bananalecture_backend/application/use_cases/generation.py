@@ -14,6 +14,7 @@ from bananalecture_backend.application.ports import (
     BackgroundTaskRunner,
     DialogueGenerator,
     ImageGenerator,
+    ImagePreprocessor,
     VideoRenderer,
 )
 from bananalecture_backend.application.strategies import AudioCueStrategy, DialoguePromptStrategy
@@ -54,6 +55,7 @@ class RunPipelineUseCase:
         audio_synthesizer: AudioSynthesizer,
         audio_processor: AudioProcessor,
         audio_cue_strategy: AudioCueStrategy,
+        image_preprocessor: ImagePreprocessor,
         video_renderer: VideoRenderer,
         asset_store: AssetStore,
         settings: Settings,
@@ -66,6 +68,7 @@ class RunPipelineUseCase:
         self.audio_synthesizer = audio_synthesizer
         self.audio_processor = audio_processor
         self.audio_cue_strategy = audio_cue_strategy
+        self.image_preprocessor = image_preprocessor
         self.video_renderer = video_renderer
         self.asset_store = asset_store
         self.settings = settings
@@ -264,6 +267,7 @@ class RunPipelineUseCase:
     ) -> Callable[[str, async_sessionmaker[AsyncSession]], Awaitable[None]]:
         runtime = self.runtime
         asset_store = self.asset_store
+        image_preprocessor = self.image_preprocessor
         video_renderer = self.video_renderer
         session_factory = self.session_factory
         settings = self.settings
@@ -274,6 +278,7 @@ class RunPipelineUseCase:
                 await GenerateProjectVideoUseCase(
                     session,
                     asset_store,
+                    image_preprocessor,
                     video_renderer,
                     settings,
                 ).execute(
@@ -338,6 +343,7 @@ class ResumePipelineUseCase:
         audio_synthesizer: AudioSynthesizer,
         audio_processor: AudioProcessor,
         audio_cue_strategy: AudioCueStrategy,
+        image_preprocessor: ImagePreprocessor,
         video_renderer: VideoRenderer,
         asset_store: AssetStore,
         settings: Settings,
@@ -351,6 +357,7 @@ class ResumePipelineUseCase:
         self.audio_synthesizer = audio_synthesizer
         self.audio_processor = audio_processor
         self.audio_cue_strategy = audio_cue_strategy
+        self.image_preprocessor = image_preprocessor
         self.video_renderer = video_renderer
         self.asset_store = asset_store
         self.settings = settings
@@ -591,6 +598,7 @@ class ResumePipelineUseCase:
     ) -> Callable[[str, async_sessionmaker[AsyncSession]], Awaitable[None]]:
         runtime = self.runtime
         asset_store = self.asset_store
+        image_preprocessor = self.image_preprocessor
         video_renderer = self.video_renderer
         session_factory = self.session_factory
         settings = self.settings
@@ -601,6 +609,7 @@ class ResumePipelineUseCase:
                 await GenerateProjectVideoUseCase(
                     session,
                     asset_store,
+                    image_preprocessor,
                     video_renderer,
                     settings,
                 ).execute(

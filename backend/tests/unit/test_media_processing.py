@@ -9,6 +9,7 @@ import pytest
 
 from bananalecture_backend.core.config import Settings
 from bananalecture_backend.infrastructure.audio_processing import AudioProcessingService
+from bananalecture_backend.infrastructure.image_processing import ImageProcessingService
 from bananalecture_backend.infrastructure.video_processing import VideoProcessingService
 
 FFMPEG_BIN = shutil.which("ffmpeg")
@@ -165,3 +166,59 @@ def test_video_processing_normalizes_clip_and_concat_audio_to_stereo(
     assert _probe_audio_channels(output) == 2
     assert _probe_audio_sample_rate(output) == test_settings.AUDIO_GENERATION.SAMPLE_RATE
     _decode_media(output)
+
+
+@pytest.mark.asyncio
+async def test_image_preprocessing_resizes_and_pads_to_exact_dimensions(tmp_path: Path) -> None:
+    service = ImageProcessingService()
+    target_width = 320
+    target_height = 240
+    input_path = tmp_path / "input.png"
+    output_path = tmp_path / "output.jpg"
+
+    from PIL import Image
+
+    # Create a small 100x100 test image
+    original = Image.new("RGB", (100, 100), (255, 0, 0))
+    original.save(input_path)
+
+    await service.resize_image(input_path, output_path, target_width, target_height)
+
+    assert output_path.exists()
+
+    with Image.open(output_path) as result:
+        assert result.width == target_width
+        assert result.height == target_height
+        # Image should be centered on black background
+        # Check that corners are black (padded) and center is red
+        center_pixel = result.getpixel((target_width // 2, target_height // 2))
+        assert center_pixel[0] > 250 and center_pixel[1] == 0, f"Expected red center, got {center_pixel}"
+        corner_pixel = result.getpixel((0, 0))
+        assert corner_pixel == (0, 0, 0), f"Expected black corner, got {corner_pixel}"
+
+
+@pytest.mark.asyncio
+async def test_image_preprocessing_with_large_input(tmp_path: Path) -> None:
+    service = ImageProcessingService()
+    target_width = 320
+    target_height = 240
+    input_path = tmp_path / "input.png"
+    output_path = tmp_path / "output.jpg"
+
+    from PIL import Image
+
+    # Create a large 4000x2000 test image (simulating wide 4K image)
+    original = Image.new("RGB", (4000, 2000), (0, 255, 0))
+    original.save(input_path)
+
+    await service.resize_image(input_path, output_path, target_width, target_height)
+
+    assert output_path.exists()
+
+    with Image.open(output_path) as result:
+        assert result.width == target_width
+        assert result.height == target_height
+        # Image should be letterboxed (padded top/bottom) since input is wider
+        # The green area should be centered horizontally
+        center_pixel = result.getpixel((target_width // 2, target_height // 2))
+        assert center_pixel[1] > 250 and center_pixel[0] == 0, f"Expected green center, got {center_pixel}"

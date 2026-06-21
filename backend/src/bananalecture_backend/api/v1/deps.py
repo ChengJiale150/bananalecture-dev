@@ -14,6 +14,7 @@ from bananalecture_backend.application.ports import (
     BackgroundTaskRunner,
     DialogueGenerator,
     ImageGenerator,
+    ImagePreprocessor,
     VideoRenderer,
 )
 from bananalecture_backend.application.strategies import (
@@ -46,6 +47,7 @@ from bananalecture_backend.clients.dialogue_generation import build_dialogue_gen
 from bananalecture_backend.clients.image_generation import build_image_generation_client
 from bananalecture_backend.core.config import ROOT_DIR, Settings
 from bananalecture_backend.infrastructure.audio_processing import build_audio_processing_service
+from bananalecture_backend.infrastructure.image_processing import build_image_processing_service
 from bananalecture_backend.infrastructure.log_reader import LogReader
 from bananalecture_backend.infrastructure.storage import StorageService
 from bananalecture_backend.infrastructure.video_processing import build_video_processing_service
@@ -186,6 +188,11 @@ def get_video_renderer(settings: SettingsDep) -> VideoRenderer:
     return build_video_processing_service(settings)
 
 
+def get_image_preprocessor() -> ImagePreprocessor:
+    """Build the image preprocessor port."""
+    return build_image_processing_service()
+
+
 def get_dialogue_prompt_strategy() -> DialoguePromptStrategy:
     """Build the dialogue prompt strategy."""
     return DefaultDialoguePromptStrategy()
@@ -202,6 +209,7 @@ DialogueGeneratorDep = Annotated[DialogueGenerator, Depends(get_dialogue_generat
 AudioSynthesizerDep = Annotated[AudioSynthesizer, Depends(get_audio_synthesizer)]
 AudioProcessorDep = Annotated[AudioProcessor, Depends(get_audio_processor)]
 VideoRendererDep = Annotated[VideoRenderer, Depends(get_video_renderer)]
+ImagePreprocessorDep = Annotated[ImagePreprocessor, Depends(get_image_preprocessor)]
 DialoguePromptStrategyDep = Annotated[DialoguePromptStrategy, Depends(get_dialogue_prompt_strategy)]
 AudioCueStrategyDep = Annotated[AudioCueStrategy, Depends(get_audio_cue_strategy)]
 
@@ -289,10 +297,11 @@ def get_generate_slide_audio_use_case(
 def get_generate_project_video_use_case(
     session: DBSessionDep,
     asset_store: AssetStoreDep,
+    image_preprocessor: ImagePreprocessorDep,
     video_renderer: VideoRendererDep,
     settings: SettingsDep,
 ) -> GenerateProjectVideoUseCase:
-    return GenerateProjectVideoUseCase(session, asset_store, video_renderer, settings)
+    return GenerateProjectVideoUseCase(session, asset_store, image_preprocessor, video_renderer, settings)
 
 
 def get_queue_batch_image_generation_use_case(
@@ -353,6 +362,7 @@ def get_queue_batch_audio_generation_use_case(
 def get_queue_project_video_generation_use_case(
     context: AppContextDep,
     asset_store: AssetStoreDep,
+    image_preprocessor: ImagePreprocessorDep,
     video_renderer: VideoRendererDep,
 ) -> QueueProjectVideoGenerationUseCase:
     return QueueProjectVideoGenerationUseCase(
@@ -360,6 +370,7 @@ def get_queue_project_video_generation_use_case(
         context.runtime,
         context.session_factory,
         asset_store,
+        image_preprocessor,
         video_renderer,
         context.settings,
     )
@@ -389,6 +400,7 @@ def get_resume_task_use_case(
     audio_synthesizer: AudioSynthesizerDep,
     audio_processor: AudioProcessorDep,
     audio_cue_strategy: AudioCueStrategyDep,
+    image_preprocessor: ImagePreprocessorDep,
     video_renderer: VideoRendererDep,
     asset_store: AssetStoreDep,
 ) -> ResumeTaskUseCase:
@@ -402,6 +414,7 @@ def get_resume_task_use_case(
         audio_synthesizer,
         audio_processor,
         audio_cue_strategy,
+        image_preprocessor,
         video_renderer,
         asset_store,
         context.settings,
@@ -463,6 +476,7 @@ def get_run_pipeline_use_case(
     audio_synthesizer: AudioSynthesizerDep,
     audio_processor: AudioProcessorDep,
     audio_cue_strategy: AudioCueStrategyDep,
+    image_preprocessor: ImagePreprocessorDep,
     video_renderer: VideoRendererDep,
     asset_store: AssetStoreDep,
     settings: SettingsDep,
@@ -476,6 +490,7 @@ def get_run_pipeline_use_case(
         audio_synthesizer,
         audio_processor,
         audio_cue_strategy,
+        image_preprocessor,
         video_renderer,
         asset_store,
         settings,
@@ -498,6 +513,7 @@ def get_resume_pipeline_use_case(
     audio_synthesizer: AudioSynthesizerDep,
     audio_processor: AudioProcessorDep,
     audio_cue_strategy: AudioCueStrategyDep,
+    image_preprocessor: ImagePreprocessorDep,
     video_renderer: VideoRendererDep,
     asset_store: AssetStoreDep,
 ) -> ResumePipelineUseCase:
@@ -511,6 +527,7 @@ def get_resume_pipeline_use_case(
         audio_synthesizer,
         audio_processor,
         audio_cue_strategy,
+        image_preprocessor,
         video_renderer,
         asset_store,
         context.settings,

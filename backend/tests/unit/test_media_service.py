@@ -62,6 +62,14 @@ class FakeAudioProcessingService:
         output.write_bytes(b"|".join(path.read_bytes() for path in inputs))
 
 
+class FakeImagePreprocessingService:
+    """Copy the input image to the output path (no actual resize)."""
+
+    async def resize_image(self, input_path: Path, output_path: Path, width: int, height: int) -> None:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_bytes(input_path.read_bytes())
+
+
 class FakeVideoProcessingService:
     """Record slide clip rendering and final concatenation."""
 
@@ -376,11 +384,14 @@ async def test_queue_video_generation_writes_project_video_and_updates_progress(
     await SlideResourceService(db_session).set_audio_path(second_slide.id, second_audio_path)
     await db_session.commit()
 
+    fake_image_preprocessor = FakeImagePreprocessingService()
+
     service = QueueProjectVideoGenerationUseCase(
         db_session,
         runtime,
         database_manager.session_factory,
         storage,
+        fake_image_preprocessor,
         fake_video_processing,
         test_settings,
     )
@@ -397,8 +408,8 @@ async def test_queue_video_generation_writes_project_video_and_updates_progress(
     video_bytes = await storage.read_bytes(project.video_path)
     assert video_bytes == b"image-1|audio-1image-2|audio-2"
     assert fake_video_processing.render_calls == [
-        ("original.png", "slide.mp3", "001.mp4"),
-        ("original.png", "slide.mp3", "002.mp4"),
+        ("001_preprocessed.jpg", "slide.mp3", "001.mp4"),
+        ("002_preprocessed.jpg", "slide.mp3", "002.mp4"),
     ]
     assert fake_video_processing.concat_calls == [(["001.mp4", "002.mp4"], "project-video.mp4")]
 
@@ -424,6 +435,7 @@ async def test_queue_video_generation_rejects_missing_slide_image(
         runtime,
         database_manager.session_factory,
         storage,
+        FakeImagePreprocessingService(),
         FakeVideoProcessingService(),
         test_settings,
     )
@@ -454,6 +466,7 @@ async def test_queue_video_generation_rejects_missing_audio_file(
         runtime,
         database_manager.session_factory,
         storage,
+        FakeImagePreprocessingService(),
         FakeVideoProcessingService(),
         test_settings,
     )
@@ -493,6 +506,7 @@ async def test_queue_video_generation_marks_task_failed_when_processing_errors(
         runtime,
         database_manager.session_factory,
         storage,
+        FakeImagePreprocessingService(),
         FailingVideoProcessingService(),
         test_settings,
     )
@@ -517,7 +531,9 @@ async def test_video_service_validates_inputs_without_creating_task(
     storage = StorageService(test_settings.STORAGE.DATA_DIR)
     await storage.initialize()
 
-    service = GenerateProjectVideoUseCase(db_session, storage, FakeVideoProcessingService(), test_settings)
+    service = GenerateProjectVideoUseCase(
+        db_session, storage, FakeImagePreprocessingService(), FakeVideoProcessingService(), test_settings
+    )
 
     with pytest.raises(BadRequestError, match=f"Slide {slide_id} image must be generated before video generation"):
         await service.validate_inputs(project_id)

@@ -57,14 +57,6 @@ class VideoProcessingService:
                 "scale",
                 self.settings.WIDTH,
                 self.settings.HEIGHT,
-                force_original_aspect_ratio="decrease",
-            ).filter(
-                "pad",
-                self.settings.WIDTH,
-                self.settings.HEIGHT,
-                "(ow-iw)/2",
-                "(oh-ih)/2",
-                color=self.settings.BACKGROUND_COLOR,
             )
             stream = ffmpeg.output(
                 video_stream,
