@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import shutil
 from base64 import b64encode
 from dataclasses import dataclass
@@ -16,6 +17,7 @@ from bananalecture_backend.application.ports import (
     AudioProcessor,
     AudioSynthesizer,
     DialogueGenerator,
+    GeneratedDialogueDraft,
     ImageGenerator,
     ImagePreprocessor,
     VideoRenderer,
@@ -251,6 +253,23 @@ class GenerateSlideDialoguesUseCase:
         )
         try:
             generated = await self.dialogue_generator.generate_dialogues(prompt, image_bytes)
+
+            _math_pattern = re.compile(r"(?<!\$)\$(?!\$)(.+?)(?<!\$)\$(?!\$)")
+
+            def _normalize_math(content: str) -> str:
+                return _math_pattern.sub(r"$$\1$$", content)
+
+            processed = [
+                GeneratedDialogueDraft(
+                    role=item.role,
+                    content=_normalize_math(item.content),
+                    emotion=item.emotion,
+                    speed=item.speed,
+                )
+                for item in generated
+            ]
+            generated = processed
+
             await self.dialogues.delete_by_slide(slide_id)
             timestamp = utc_now()
             records = [
