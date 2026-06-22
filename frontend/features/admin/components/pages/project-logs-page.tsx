@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useBasePath } from '@/contexts/base-path-context';
 import {
   ScrollText,
   ArrowLeft,
@@ -29,6 +30,7 @@ const LEVELS = ['all', 'DEBUG', 'INFO', 'WARNING', 'ERROR'];
 export default function ProjectLogsPage() {
   const params = useParams();
   const router = useRouter();
+  const { basePath } = useBasePath();
   const projectId = params.projectId as string;
 
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -104,7 +106,7 @@ export default function ProjectLogsPage() {
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         <button
-          onClick={() => router.push('/admin/projects')}
+          onClick={() => router.push(`${basePath}/admin/projects`)}
           className="flex items-center gap-1 rounded-lg border-2 border-gray-300 px-3 py-1.5 text-xs font-bold text-gray-600 transition-colors hover:border-gray-900 hover:text-gray-900"
         >
           <ArrowLeft size={14} />

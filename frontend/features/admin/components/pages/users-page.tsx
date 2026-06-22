@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useBasePath } from '@/contexts/base-path-context';
 import { Users, User, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
 import Pagination from '@/features/admin/components/shared/pagination';
 import EmptyState from '@/features/admin/components/shared/empty-state';
@@ -23,6 +24,7 @@ type SortKey = 'user_id' | 'project_count' | 'last_active_at';
 
 export default function UsersPage() {
   const router = useRouter();
+  const { basePath } = useBasePath();
   const [users, setUsers] = useState<AdminUserItem[]>([]);
   const [pagination, setPagination] = useState<PaginationDTO | null>(null);
   const [loading, setLoading] = useState(true);
@@ -126,7 +128,7 @@ export default function UsersPage() {
                 </div>
                 <button
                   onClick={() =>
-                    router.push(`/admin/projects?user_id=${encodeURIComponent(user.user_id)}`)
+                    router.push(`${basePath}/admin/projects?user_id=${encodeURIComponent(user.user_id)}`)
                   }
                   className="flex items-center gap-1 rounded-lg border-2 border-gray-300 px-3 py-1.5 text-xs font-bold text-gray-600 transition-colors hover:border-gray-900 hover:text-gray-900"
                 >

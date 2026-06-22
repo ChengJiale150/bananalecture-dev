@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useBasePath } from '@/contexts/base-path-context';
+import Link from 'next/link';
 import {
   FolderOpen,
   ExternalLink,
@@ -17,6 +19,7 @@ import type { AdminProjectItem, PaginationDTO } from '@/features/admin/types';
 
 export default function ProjectsPage() {
   const router = useRouter();
+  const { basePath } = useBasePath();
   const searchParams = useSearchParams();
   const filterUserId = searchParams.get('user_id');
 
@@ -45,7 +48,7 @@ export default function ProjectsPage() {
   useEffect(load, [load]);
 
   const clearFilter = () => {
-    router.push('/admin/projects');
+    router.push(`${basePath}/admin/projects`);
   };
 
   return (
@@ -114,17 +117,17 @@ export default function ProjectsPage() {
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <a
-                    href={`/preview?id=${project.id}&page=1`}
+                  <Link
+                    href={`${basePath}/preview?id=${project.id}&page=1`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 rounded-lg border-2 border-gray-300 px-3 py-1.5 text-xs font-bold text-gray-600 transition-colors hover:border-gray-900 hover:text-gray-900"
                   >
                     <Eye size={14} />
                     预览
-                  </a>
+                  </Link>
                   <button
-                    onClick={() => router.push(`/admin/logs/${project.id}`)}
+                    onClick={() => router.push(`${basePath}/admin/logs/${project.id}`)}
                     className="flex items-center gap-1 rounded-lg border-2 border-gray-300 px-3 py-1.5 text-xs font-bold text-gray-600 transition-colors hover:border-gray-900 hover:text-gray-900"
                   >
                     <FileText size={14} />

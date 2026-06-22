@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useBasePath } from '@/contexts/base-path-context';
 import {
   LayoutDashboard,
   Users,
@@ -11,15 +12,16 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 
-const NAV_ITEMS = [
-  { href: '/admin', label: '仪表盘', icon: LayoutDashboard },
-  { href: '/admin/users', label: '用户管理', icon: Users },
-  { href: '/admin/projects', label: '项目管理', icon: FolderOpen },
-  { href: '/admin/logs', label: '系统日志', icon: ScrollText },
-];
-
 export default function AdminSidebar() {
   const pathname = usePathname();
+  const { basePath } = useBasePath();
+
+  const NAV_ITEMS = [
+    { href: `${basePath}/admin`, label: '仪表盘', icon: LayoutDashboard },
+    { href: `${basePath}/admin/users`, label: '用户管理', icon: Users },
+    { href: `${basePath}/admin/projects`, label: '项目管理', icon: FolderOpen },
+    { href: `${basePath}/admin/logs`, label: '系统日志', icon: ScrollText },
+  ];
 
   return (
     <div className="flex w-60 shrink-0 flex-col bg-[var(--banana-blue)] text-white border-r-4 border-gray-800 shadow-[4px_0px_0px_rgba(0,0,0,0.2)]">
@@ -35,8 +37,8 @@ export default function AdminSidebar() {
       <nav className="flex-1 space-y-1 p-4">
         {NAV_ITEMS.map(item => {
           const isActive =
-            item.href === '/admin'
-              ? pathname === '/admin'
+            item.href === `${basePath}/admin`
+              ? pathname === `${basePath}/admin`
               : pathname.startsWith(item.href);
           const Icon = item.icon;
           return (
@@ -58,7 +60,7 @@ export default function AdminSidebar() {
 
       <div className="border-t-4 border-gray-800 p-4">
         <Link
-          href="/"
+          href={basePath || '/'}
           className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-white/80 transition-all hover:bg-white/10 hover:text-white"
         >
           <ArrowLeft size={16} />
