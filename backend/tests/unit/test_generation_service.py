@@ -170,3 +170,18 @@ async def test_get_session_raises_not_found(db_session) -> None:
 
     with pytest.raises(NotFoundError, match="Generation session not found"):
         await svc.get_session("gs-nonexistent")
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_mark_running_clears_error_message(db_session) -> None:
+    project_id = await _create_project(db_session)
+    svc = GenerationSessionService(db_session)
+    session_obj = await svc.create_session(project_id)
+
+    await svc.mark_failed(session_obj.id, "Something went wrong")
+    await svc.mark_running(session_obj.id)
+
+    refreshed = await svc.get_session(session_obj.id)
+    assert refreshed.status == "running"
+    assert refreshed.error_message is None

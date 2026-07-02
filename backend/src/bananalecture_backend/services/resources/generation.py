@@ -102,6 +102,7 @@ class GenerationSessionService:
             session_id,
             {
                 "status": GenerationSessionStatus.RUNNING.value,
+                "error_message": None,
                 "updated_at": utc_now(),
             },
         )

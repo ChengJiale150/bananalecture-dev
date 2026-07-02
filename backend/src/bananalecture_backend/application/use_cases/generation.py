@@ -35,7 +35,7 @@ from bananalecture_backend.schemas.task import Task, TaskType
 from bananalecture_backend.services.resources import GenerationSessionService, TaskRecordService
 
 _WorkBuilder = Callable[
-    [str, list[SlideModel], str],
+    ...,
     Callable[[str, async_sessionmaker[AsyncSession]], Awaitable[None]],
 ]
 
@@ -386,6 +386,7 @@ class ResumePipelineUseCase:
 
         # Slow path: server restart or failed task
         resume_from = session_obj.current_phase
+        resume_step = 0
 
         # Check current task status if exists
         if session_obj.current_task_id:
@@ -408,9 +409,12 @@ class ResumePipelineUseCase:
                 )
                 launch_task(task, self.runtime, self.session_factory, self.settings, work)
             elif task and task.status == "failed":
-                # Failed task — mark pipeline failed, let user decide
-                await self.sessions.mark_failed(session_obj.id, task.error_message or "Pipeline task failed")
-                return await self.sessions.build_response(session_obj.id)
+                resume_step = task.current_step
+                global_logger.bind(
+                    session_id=session_obj.id,
+                    project_id=project_id,
+                    resume_step=resume_step,
+                ).info("pipeline_resuming_from_checkpoint")
 
         if resume_from >= 4:
             await self.sessions.mark_completed(session_obj.id)
@@ -422,7 +426,13 @@ class ResumePipelineUseCase:
 
         async def pipeline_runner() -> None:
             try:
-                await self._run_pipeline_from(session_obj.id, project_id, slides, resume_from)
+                await self._run_pipeline_from(
+                    session_obj.id,
+                    project_id,
+                    slides,
+                    resume_from,
+                    resume_step=resume_step,
+                )
             except asyncio.CancelledError:
                 async with self.session_factory() as s:
                     await GenerationSessionService(s).mark_cancelled(session_obj.id)
@@ -444,6 +454,8 @@ class ResumePipelineUseCase:
         project_id: str,
         slides: list[SlideModel],
         start_phase: int,
+        *,
+        resume_step: int = 0,
     ) -> None:
         phases: list[tuple[str, TaskType, _WorkBuilder]] = [
             ("images", TaskType.IMAGE_GENERATION, self._build_image_work),
@@ -463,7 +475,8 @@ class ResumePipelineUseCase:
             async with self.session_factory() as s:
                 await GenerationSessionService(s).mark_phase(session_id, idx, task_id=task.id)
 
-            work = build_work(project_id, slides, task.id)
+            step = resume_step if idx == start_phase else 0
+            work = build_work(project_id, slides, task.id, resume_step=step)
             launch_task(task, self.runtime, self.session_factory, self.settings, work)
 
             while True:
@@ -490,6 +503,8 @@ class ResumePipelineUseCase:
         project_id: str,
         slides: list[SlideModel],
         task_id: str,
+        *,
+        resume_step: int = 0,
     ) -> Callable[[str, async_sessionmaker[AsyncSession]], Awaitable[None]]:
         type_map = {
             TaskType.IMAGE_GENERATION.value: self._build_image_work,
@@ -500,13 +515,15 @@ class ResumePipelineUseCase:
         builder = type_map.get(task_type)
         if builder is None:
             raise BadRequestError(f"Unknown task type: {task_type}")
-        return builder(project_id, slides, task_id)
+        return builder(project_id, slides, task_id, resume_step=resume_step)
 
     def _build_image_work(
         self,
         project_id: str,
         slides: list[SlideModel],
         task_id: str,
+        *,
+        resume_step: int = 0,
     ) -> Callable[[str, async_sessionmaker[AsyncSession]], Awaitable[None]]:
         runtime = self.runtime
         image_generator = self.image_generator
@@ -515,7 +532,7 @@ class ResumePipelineUseCase:
         settings = self.settings
 
         async def work(_task_id: str, _: async_sessionmaker[AsyncSession]) -> None:
-            for index, slide in enumerate(slides, start=1):
+            for index, slide in enumerate(slides[resume_step:], start=resume_step + 1):
                 await runtime.wait_if_paused(_task_id)
                 async with session_factory() as session:
                     await GenerateSlideImageUseCase(
@@ -533,6 +550,8 @@ class ResumePipelineUseCase:
         project_id: str,
         slides: list[SlideModel],
         task_id: str,
+        *,
+        resume_step: int = 0,
     ) -> Callable[[str, async_sessionmaker[AsyncSession]], Awaitable[None]]:
         runtime = self.runtime
         dialogue_generator = self.dialogue_generator
@@ -542,7 +561,7 @@ class ResumePipelineUseCase:
         settings = self.settings
 
         async def work(_task_id: str, _: async_sessionmaker[AsyncSession]) -> None:
-            for index, slide in enumerate(slides, start=1):
+            for index, slide in enumerate(slides[resume_step:], start=resume_step + 1):
                 await runtime.wait_if_paused(_task_id)
                 async with session_factory() as session:
                     await GenerateSlideDialoguesUseCase(
@@ -561,6 +580,8 @@ class ResumePipelineUseCase:
         project_id: str,
         slides: list[SlideModel],
         task_id: str,
+        *,
+        resume_step: int = 0,
     ) -> Callable[[str, async_sessionmaker[AsyncSession]], Awaitable[None]]:
         runtime = self.runtime
         audio_synthesizer = self.audio_synthesizer
@@ -573,7 +594,7 @@ class ResumePipelineUseCase:
         settings = self.settings
 
         async def work(_task_id: str, _: async_sessionmaker[AsyncSession]) -> None:
-            for index, slide in enumerate(slides, start=1):
+            for index, slide in enumerate(slides[resume_step:], start=resume_step + 1):
                 await runtime.wait_if_paused(_task_id)
                 async with session_factory() as session:
                     await GenerateSlideAudioUseCase(
@@ -595,6 +616,8 @@ class ResumePipelineUseCase:
         project_id: str,
         slides: list[SlideModel],
         task_id: str,
+        *,
+        resume_step: int = 0,
     ) -> Callable[[str, async_sessionmaker[AsyncSession]], Awaitable[None]]:
         runtime = self.runtime
         asset_store = self.asset_store

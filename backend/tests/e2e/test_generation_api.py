@@ -104,3 +104,46 @@ def test_pause_and_resume_generation(client: TestClient, test_settings: Settings
 
     pipeline = _wait_for_pipeline_completion(client, test_settings, project_id)
     assert pipeline["status"] == "completed"
+
+
+class _FailingImageClient:
+    """Image generator that raises on every call."""
+
+    async def generate_image(self, prompt: str, reference_image: str | None = None) -> bytes:
+        raise Exception("Test image generation failure")
+
+
+@pytest.mark.e2e
+def test_resume_failed_generation_from_checkpoint(
+    test_settings: Settings,
+) -> None:
+    """Failed pipeline can be resumed, becoming 'running' again with error cleared."""
+    from bananalecture_backend.api.v1 import deps
+    from bananalecture_backend.main import create_app
+    from tests.conftest import (
+        FakeAudioGenerationClient,
+        FakeAudioProcessingService,
+        FakeDialogueGenerationClient,
+        FakeVideoProcessingService,
+    )
+
+    app = create_app(test_settings)
+    app.dependency_overrides[deps.get_image_generator] = lambda: _FailingImageClient()
+    app.dependency_overrides[deps.get_dialogue_generator] = lambda: FakeDialogueGenerationClient()
+    app.dependency_overrides[deps.get_audio_synthesizer] = lambda: FakeAudioGenerationClient()
+    app.dependency_overrides[deps.get_audio_processor] = lambda: FakeAudioProcessingService()
+    app.dependency_overrides[deps.get_video_renderer] = lambda: FakeVideoProcessingService()
+
+    with TestClient(app, headers={"X-User-Id": "test-user"}) as client:
+        project_id = _create_project(client, test_settings)
+        client.post(f"{test_settings.API.V1_STR}/projects/{project_id}/generate")
+
+        pipeline = _wait_for_pipeline_completion(client, test_settings, project_id, timeout_seconds=10.0)
+        assert pipeline["status"] == "failed"
+        assert pipeline["error_message"] is not None
+
+        resume_response = client.post(f"{test_settings.API.V1_STR}/projects/{project_id}/generation/resume")
+        assert resume_response.status_code == status.HTTP_202_ACCEPTED
+        data = resume_response.json()["data"]
+        assert data["status"] == "running"
+        assert data["error_message"] is None
