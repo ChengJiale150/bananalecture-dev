@@ -16,6 +16,7 @@ import {
   batchGenerateDialogues,
   batchGenerateImages,
   cancelGeneration,
+  cancelTask,
   deleteDialogue,
   downloadVideoFile,
   fetchSlideImageBlob,
@@ -31,18 +32,22 @@ import {
   mapGenerationSession,
   modifySlideImage,
   pauseGeneration,
+  pauseTask,
   reorderDialogues,
   resumeGeneration,
+  resumeTask,
   startGeneration,
   updateDialogue,
 } from '@/features/projects/api';
 import { cacheImage, getCachedImage } from '@/features/preview/utils/image-cache';
 import { getPageParamFromSlideIndex, getSlideIndexFromPageParam } from '@/features/projects/utils';
 import {
+  finalizeGenerationSession,
   getEstimatedRemainingSeconds,
   getGenerationOverallProgress,
   isGenerationSessionActive,
   isGenerationSessionResumable,
+  updateGenerationSessionTask,
 } from '@/features/preview/utils/generation-session';
 import {
   buildPreviewQueryString,
@@ -62,6 +67,16 @@ import {
 } from '../utils';
 
 const POLL_INTERVAL_MS = 2000;
+
+function getActiveSingleStageTaskId(session: GenerationSessionState): string | undefined {
+  if (session.mode !== 'single-stage') return undefined;
+  const activeStage = session.currentStage;
+  return (
+    (activeStage
+      ? session.stages.find(stage => stage.stage === activeStage)?.taskId
+      : undefined) ?? session.activeTask?.id
+  );
+}
 
 export function usePreviewState(
   projectIdFromUrl: string | null,
@@ -354,6 +369,11 @@ export function usePreviewState(
     let cancelled = false;
     let intervalId = 0;
 
+    const handleFinalState = async () => {
+      window.clearInterval(intervalId);
+      await refreshProject({ force: true });
+    };
+
     const pollPipeline = async () => {
       try {
         const status = await getGenerationStatus(projectId);
@@ -363,8 +383,7 @@ export function usePreviewState(
         commitGenerationSession(nextSession);
 
         if (nextSession.status !== 'running') {
-          window.clearInterval(intervalId);
-          await refreshProject({ force: true });
+          await handleFinalState();
         }
       } catch (error) {
         console.error('Failed to poll pipeline:', error);
@@ -372,8 +391,36 @@ export function usePreviewState(
       }
     };
 
-    void pollPipeline();
-    intervalId = window.setInterval(pollPipeline, POLL_INTERVAL_MS);
+    const pollSingleStageTask = async () => {
+      const taskId = getActiveSingleStageTaskId(generationSession);
+
+      if (!taskId) {
+        console.error('No task ID found for single-stage generation polling');
+        window.clearInterval(intervalId);
+        return;
+      }
+
+      try {
+        const task = await getTask(taskId);
+        if (cancelled) return;
+
+        const nextSession = updateGenerationSessionTask(generationSession, task);
+        commitGenerationSession(nextSession);
+
+        if (nextSession.status !== 'running') {
+          await handleFinalState();
+        }
+      } catch (error) {
+        console.error('Failed to poll single-stage task:', error);
+        window.clearInterval(intervalId);
+        commitGenerationSession(finalizeGenerationSession(generationSession, 'failed'));
+      }
+    };
+
+    const poll = generationSession.mode === 'pipeline' ? pollPipeline : pollSingleStageTask;
+
+    void poll();
+    intervalId = window.setInterval(poll, POLL_INTERVAL_MS);
 
     return () => {
       cancelled = true;
@@ -496,9 +543,19 @@ export function usePreviewState(
   const handlePauseGeneration = useCallback(async () => {
     if (!projectId) return;
 
+    const session = generationSessionRef.current;
+    if (!session) return;
+
     try {
-      const status = await pauseGeneration(projectId);
-      commitGenerationSession(mapGenerationSession(status));
+      if (session.mode === 'single-stage') {
+        const taskId = getActiveSingleStageTaskId(session);
+        if (!taskId) return;
+        const task = await pauseTask(taskId);
+        commitGenerationSession(updateGenerationSessionTask(session, task));
+      } else {
+        const status = await pauseGeneration(projectId);
+        commitGenerationSession(mapGenerationSession(status));
+      }
     } catch (error) {
       console.error('Failed to pause generation:', error);
     }
@@ -507,9 +564,19 @@ export function usePreviewState(
   const handleResumeGeneration = useCallback(async () => {
     if (!projectId) return;
 
+    const session = generationSessionRef.current;
+    if (!session) return;
+
     try {
-      const status = await resumeGeneration(projectId);
-      commitGenerationSession(mapGenerationSession(status));
+      if (session.mode === 'single-stage') {
+        const taskId = getActiveSingleStageTaskId(session);
+        if (!taskId) return;
+        const task = await resumeTask(taskId);
+        commitGenerationSession(updateGenerationSessionTask(session, task));
+      } else {
+        const status = await resumeGeneration(projectId);
+        commitGenerationSession(mapGenerationSession(status));
+      }
     } catch (error) {
       console.error('Failed to resume generation:', error);
     }
@@ -518,9 +585,19 @@ export function usePreviewState(
   const handleStopGeneration = useCallback(async () => {
     if (!projectId) return;
 
+    const session = generationSessionRef.current;
+    if (!session) return;
+
     try {
-      const status = await cancelGeneration(projectId);
-      commitGenerationSession(mapGenerationSession(status));
+      if (session.mode === 'single-stage') {
+        const taskId = getActiveSingleStageTaskId(session);
+        if (!taskId) return;
+        const task = await cancelTask(taskId);
+        commitGenerationSession(updateGenerationSessionTask(session, task));
+      } else {
+        const status = await cancelGeneration(projectId);
+        commitGenerationSession(mapGenerationSession(status));
+      }
     } catch (error) {
       console.error('Failed to cancel generation:', error);
     }
