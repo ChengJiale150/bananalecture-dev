@@ -19,6 +19,7 @@ class ProjectModel(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     user_id: Mapped[str] = mapped_column(String(255))
     name: Mapped[str] = mapped_column(String(255))
+    template_id: Mapped[str] = mapped_column(String(32))
     messages: Mapped[str | None] = mapped_column(Text, nullable=True)
     video_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime())

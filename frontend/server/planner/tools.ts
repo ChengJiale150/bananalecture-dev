@@ -1,6 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import type { Slide } from '@/features/projects/types';
+import { DEFAULT_TEMPLATE_ID, getToolDescription, type TemplateId } from '@/shared/template-config';
 
 export const SlideSchema = z.object({
   type: z
@@ -18,10 +19,9 @@ export const SlideSchema = z.object({
 
 export type SlideType = z.infer<typeof SlideSchema>['type'];
 
-export function createPlannerTools(chatId: string) {
+export function createPlannerTools(chatId: string, templateId: TemplateId = DEFAULT_TEMPLATE_ID) {
   const createPPTPlanTool = tool({
-    description:
-      'Create a teaching comic plan for Doraemon-style PPT slides. Create a vivid and fun educational manga plan including cover, introduction, content with Doraemon and Nobita dialogues, summary, and ending page.',
+    description: getToolDescription(templateId),
     inputSchema: z.object({
       slides: z.array(SlideSchema).describe('Array of slides for the PPT plan'),
     }),

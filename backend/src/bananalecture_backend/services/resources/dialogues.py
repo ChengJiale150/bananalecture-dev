@@ -36,7 +36,7 @@ class DialogueResourceService:
         record = DialogueModel(
             id=new_id(),
             slide_id=slide_id,
-            role=request.role.value,
+            role=request.role,
             content=request.content,
             emotion=request.emotion.value,
             speed=request.speed.value,
@@ -63,7 +63,7 @@ class DialogueResourceService:
         await self.dialogues.update(
             dialogue,
             {
-                "role": request.role.value,
+                "role": request.role,
                 "content": request.content,
                 "emotion": request.emotion.value,
                 "speed": request.speed.value,

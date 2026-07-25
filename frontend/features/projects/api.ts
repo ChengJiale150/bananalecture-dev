@@ -6,6 +6,7 @@ import {
   type SlideInputDTO,
   type UpdateDialogueRequest,
 } from '@/shared/api/banana';
+import { DEFAULT_TEMPLATE_ID } from '@/shared/template-config';
 import type {
   DialogueDTO,
   GenerationSessionDTO,
@@ -17,7 +18,6 @@ import type {
 import type {
   Dialogue,
   DialogueEmotion,
-  DialogueRole,
   DialogueSpeed,
   GenerationSessionState,
   GenerationStage,
@@ -54,10 +54,6 @@ function parseApiTimestamp(value: string): number {
   return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
-function toDialogueRole(role: string): DialogueRole {
-  return role as DialogueRole;
-}
-
 function toDialogueEmotion(emotion: string): DialogueEmotion {
   return emotion as DialogueEmotion;
 }
@@ -69,7 +65,7 @@ function toDialogueSpeed(speed: string): DialogueSpeed {
 function mapDialogue(dto: DialogueDTO): Dialogue {
   return {
     id: dto.id,
-    role: toDialogueRole(dto.role),
+    role: dto.role,
     content: dto.content,
     emotion: toDialogueEmotion(dto.emotion),
     speed: toDialogueSpeed(dto.speed),
@@ -103,6 +99,7 @@ function mapProjectRecord(dto: ProjectDetailDTO): ProjectRecord {
   return {
     id: dto.id,
     userId: dto.user_id,
+    templateId: dto.template_id ?? DEFAULT_TEMPLATE_ID,
     title: dto.name,
     createdAt: parseApiTimestamp(dto.created_at),
     updatedAt: parseApiTimestamp(dto.updated_at),
@@ -176,9 +173,9 @@ export async function listProjects(query: ListProjectsQuery = {}): Promise<Proje
   };
 }
 
-export async function createProject(payload: Pick<CreateProjectRequest, 'name'>) {
+export async function createProject(payload: Pick<CreateProjectRequest, 'name'> & { template_id?: string }) {
   const apiClient = getApiClient();
-  const response = await apiClient.createProject({ name: payload.name });
+  const response = await apiClient.createProject({ name: payload.name, template_id: payload.template_id });
 
   return response.data.id;
 }
@@ -197,6 +194,11 @@ export async function renameProject(projectId: string, title: string) {
 export async function updateProjectMessages(projectId: string, messages: any[]) {
   const apiClient = getApiClient();
   await apiClient.updateProject(projectId, { messages: stringifyProjectMessages(messages) });
+}
+
+export async function updateProjectTemplate(projectId: string, templateId: string) {
+  const apiClient = getApiClient();
+  await apiClient.updateProject(projectId, { template_id: templateId });
 }
 
 export async function updateProjectTitleAndMessages(

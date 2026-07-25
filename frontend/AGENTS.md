@@ -7,7 +7,8 @@
 │   ├── preview/            # 预览页与媒体生成流程
 │   └── projects/           # 项目/幻灯片/对话领域模型与高层服务
 ├── shared/
-│   └── api/banana/         # BananaLecture REST requester、client、DTO
+│   ├── api/banana/         # BananaLecture REST requester、client、DTO
+│   └── template-config.ts  # 角色模板注册表（client/server 共用）
 ├── server/
 │   └── planner/            # 仅服务端使用的 agent、prompt、tool schema
 ├── tests/
@@ -40,7 +41,7 @@
 
 - **Requester Layer**: `shared/api/banana/request.ts` 负责底层 fetch、错误包装、文件 URL 构建。
 - **Client Layer**: `shared/api/banana/client.ts` 负责 REST 资源方法；不要在 UI 组件里直接操作 DTO。
-- **Planner Layer**: prompt、style config、tool schema 分开维护；新增风格或 prompt 规则时先改 `server/planner/`。
+- **Planner Layer**: prompt、template config、tool schema 分开维护；新增风格或 prompt 规则时先改 `server/planner/`（template config 位于 `shared/template-config.ts`，client/server 均可引用）。
 
 ## Development
 

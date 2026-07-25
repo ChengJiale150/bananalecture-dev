@@ -10,6 +10,8 @@ from bananalecture_backend.schemas.slide import SlideType
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from bananalecture_backend.core.templates import CueConfig
+
 
 @dataclass(frozen=True, slots=True)
 class DialoguePromptContext:
@@ -37,7 +39,11 @@ class AudioCueStrategy(Protocol):
 
 
 class DefaultDialoguePromptStrategy:
-    """Default prompt construction strategy for slide dialogue generation."""
+    """Template-aware prompt construction strategy for slide dialogue generation."""
+
+    def __init__(self, cue_config: CueConfig) -> None:
+        """Store the template cue configuration."""
+        self.cue_config = cue_config
 
     def build(self, context: DialoguePromptContext) -> str:
         """Build one dialogue-generation prompt from slide context."""
@@ -52,26 +58,29 @@ class DefaultDialoguePromptStrategy:
             sections.append(f"前一页口播稿:\n{context.previous_script}")
         else:
             sections.append("这是首页, 前一页口播稿: 无")
-        if context.slide_type == SlideType.COVER.value:
-            sections.append("当前页为封面页, 禁止生成道具角色。")
+        if self.cue_config.prop_role and context.slide_type == SlideType.COVER.value:
+            sections.append(f"当前页为封面页, 禁止生成{self.cue_config.prop_role}角色。")
         return "\n\n".join(sections)
 
 
 class DefaultAudioCueStrategy:
-    """Default cue selection rules for generated audio."""
+    """Template-aware cue selection rules for generated audio."""
 
-    def __init__(self, assets_root: Path) -> None:
-        """Store the root directory containing static cue assets."""
+    def __init__(self, assets_root: Path, cue_config: CueConfig) -> None:
+        """Store the cue assets root and template cue configuration."""
         self.assets_root = assets_root
+        self.cue_config = cue_config
 
     def dialogue_prefix_assets(self, role: str) -> list[Path]:
         """Return cue assets that must be prefixed before one dialogue audio."""
-        if role == "道具":
-            return [self.assets_root / "gadgets.mp3"]
+        if self.cue_config.prop_role and role == self.cue_config.prop_role:
+            audio = self.cue_config.prop_audio
+            if audio:
+                return [self.assets_root / audio]
         return []
 
     def slide_prefix_assets(self, slide_type: str) -> list[Path]:
         """Return cue assets that must be prefixed before merged slide audio."""
-        if slide_type == SlideType.COVER.value:
-            return [self.assets_root / "cues.mp3"]
+        if self.cue_config.cover_prefix and slide_type == SlideType.COVER.value:
+            return [self.assets_root / self.cue_config.cover_prefix]
         return []

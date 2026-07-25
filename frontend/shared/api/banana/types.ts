@@ -1,5 +1,4 @@
 export const SLIDE_TYPES = ['cover', 'introduction', 'content', 'summary', 'ending'] as const;
-export const DIALOGUE_ROLES = ['大雄', '哆啦A梦', '旁白', '其他男声', '其他女声', '道具'] as const;
 export const DIALOGUE_EMOTIONS = [
   '开心的',
   '悲伤的',
@@ -18,7 +17,7 @@ export const TASK_TYPES = [
 export const TASK_STATUSES = ['pending', 'running', 'paused', 'completed', 'cancelled', 'failed'] as const;
 
 export type SlideType = (typeof SLIDE_TYPES)[number];
-export type DialogueRole = (typeof DIALOGUE_ROLES)[number];
+export type DialogueRole = string;
 export type DialogueEmotion = (typeof DIALOGUE_EMOTIONS)[number];
 export type DialogueSpeed = (typeof DIALOGUE_SPEEDS)[number];
 export type TaskType = (typeof TASK_TYPES)[number];
@@ -46,6 +45,7 @@ export interface ProjectDTO {
   id: string;
   user_id: string;
   name: string;
+  template_id: string;
   messages: string | null;
   // Storage keys are not direct browser URLs. Use the proxied file endpoints instead.
   video_path: string | null;
@@ -56,6 +56,7 @@ export interface ProjectDTO {
 export interface ProjectListItemDTO {
   id: string;
   name: string;
+  template_id: string;
   created_at: string;
   updated_at: string;
 }
@@ -79,7 +80,7 @@ export interface SlideDTO {
 export interface DialogueDTO {
   id: string;
   slide_id: string;
-  role: DialogueRole | string;
+  role: DialogueRole;
   content: string;
   emotion: DialogueEmotion | string;
   speed: DialogueSpeed | string;
@@ -143,12 +144,14 @@ export interface ReorderDialoguesDataDTO {
 
 export interface CreateProjectRequest {
   name: string;
+  template_id?: string;
   user_id?: string;
 }
 
 export interface UpdateProjectRequest {
   name?: string;
   messages?: string;
+  template_id?: string;
 }
 
 export interface SlideInputDTO {
@@ -171,14 +174,14 @@ export interface ReorderSlidesRequest {
 }
 
 export interface AddDialogueRequest {
-  role?: DialogueRole | string;
+  role?: DialogueRole;
   content?: string;
   emotion?: DialogueEmotion | string;
   speed?: DialogueSpeed | string;
 }
 
 export interface UpdateDialogueRequest {
-  role?: DialogueRole | string;
+  role?: DialogueRole;
   content?: string;
   emotion?: DialogueEmotion | string;
   speed?: DialogueSpeed | string;

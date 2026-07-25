@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Square, Layers, Users, Palette } from 'lucide-react';
+import { Send, Square, Layers, Users, Palette, GraduationCap } from 'lucide-react';
+import { DEFAULT_TEMPLATE_ID, TEMPLATE_REGISTRY, type TemplateId } from '@/shared/template-config';
 
 export interface ChatOptions {
   pageCount: string;
   audience: string;
   style: string;
+  template: TemplateId;
 }
 
 export default function ChatInput({
@@ -12,16 +14,19 @@ export default function ChatInput({
   onSubmit,
   stop,
   isCentered = false,
+  initialTemplate = DEFAULT_TEMPLATE_ID,
 }: {
   status: string;
   onSubmit: (text: string, options?: ChatOptions) => void;
   stop?: () => void;
   isCentered?: boolean;
+  initialTemplate?: TemplateId;
 }) {
   const [text, setText] = useState('');
   const [pageCount, setPageCount] = useState('5-10');
   const [audience, setAudience] = useState('beginner');
   const [style, setStyle] = useState('multi_panel');
+  const [template, setTemplate] = useState<TemplateId>(initialTemplate);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -44,6 +49,7 @@ export default function ChatInput({
         pageCount,
         audience,
         style,
+        template,
       });
     } else {
       onSubmit(text);
@@ -110,6 +116,19 @@ export default function ChatInput({
                 <option value="multi_panel">多格动漫</option>
                 <option value="colorful_comic">彩色漫画</option>
                 <option value="flat">扁平插画</option>
+              </select>
+            </div>
+
+            <div className="relative">
+              <GraduationCap className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 pointer-events-none" />
+              <select
+                value={template}
+                onChange={e => setTemplate(e.target.value as TemplateId)}
+                className={`${selectClassName} pl-9`}
+              >
+                {Object.entries(TEMPLATE_REGISTRY).map(([id, cfg]) => (
+                  <option key={id} value={id}>{cfg.name}</option>
+                ))}
               </select>
             </div>
           </div>

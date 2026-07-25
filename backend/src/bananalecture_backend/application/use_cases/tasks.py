@@ -9,14 +9,12 @@ from typing import TYPE_CHECKING
 from bananalecture_backend.application.ports import (
     AssetStore,
     AudioProcessor,
-    AudioSynthesizer,
     BackgroundTaskRunner,
-    DialogueGenerator,
     ImageGenerator,
     ImagePreprocessor,
+    TemplateClientResolver,
     VideoRenderer,
 )
-from bananalecture_backend.application.strategies import AudioCueStrategy, DialoguePromptStrategy
 from bananalecture_backend.application.use_cases.media import (
     GenerateProjectVideoUseCase,
     GenerateSlideAudioUseCase,
@@ -26,6 +24,11 @@ from bananalecture_backend.application.use_cases.media import (
 from bananalecture_backend.core.config import Settings
 from bananalecture_backend.core.errors import BadRequestError, NotFoundError
 from bananalecture_backend.core.logging_config import get_global_logger, get_project_logger
+from bananalecture_backend.core.templates import (
+    DEFAULT_TEMPLATE_ID,
+    TemplateConfig,
+    get_template_config,
+)
 from bananalecture_backend.db.repositories import ProjectRepository, SlideRepository
 from bananalecture_backend.schemas.task import Task, TaskType
 from bananalecture_backend.services.resources import TaskRecordService
@@ -36,6 +39,19 @@ if TYPE_CHECKING:
     from bananalecture_backend.models.entities import SlideModel
 
 global_logger = get_global_logger()
+
+
+async def get_project_template_config(
+    session_factory: async_sessionmaker[AsyncSession],
+    project_id: str,
+) -> TemplateConfig | None:
+    """Read the project and return its template configuration."""
+    async with session_factory() as session:
+        project = await ProjectRepository(session).get(project_id)
+    if project is None:
+        return None
+    template_id = project.template_id or DEFAULT_TEMPLATE_ID
+    return get_template_config(template_id)
 
 
 def launch_task(
@@ -140,6 +156,7 @@ class QueueBatchImageGenerationUseCase:
         ).info("task_queued")
 
         async def work(task_id: str, session_factory: async_sessionmaker[AsyncSession]) -> None:
+            template = await get_project_template_config(self.session_factory, project_id)
             for index, slide in enumerate(slides, start=1):
                 await self.runtime.wait_if_paused(task_id)
                 async with session_factory() as session:
@@ -148,6 +165,7 @@ class QueueBatchImageGenerationUseCase:
                         self.image_generator,
                         self.asset_store,
                         self.settings,
+                        template,
                     ).execute(
                         project_id,
                         slide.id,
@@ -166,17 +184,15 @@ class QueueBatchDialogueGenerationUseCase:
         session: AsyncSession,
         runtime: BackgroundTaskRunner,
         session_factory: async_sessionmaker[AsyncSession],
-        dialogue_generator: DialogueGenerator,
-        prompt_strategy: DialoguePromptStrategy,
         asset_store: AssetStore,
+        template_client_resolver: TemplateClientResolver,
         settings: Settings,
     ) -> None:
         self.session = session
         self.runtime = runtime
         self.session_factory = session_factory
-        self.dialogue_generator = dialogue_generator
-        self.prompt_strategy = prompt_strategy
         self.asset_store = asset_store
+        self.template_client_resolver = template_client_resolver
         self.settings = settings
         self.projects = ProjectRepository(session)
         self.slides = SlideRepository(session)
@@ -199,13 +215,15 @@ class QueueBatchDialogueGenerationUseCase:
         ).info("task_queued")
 
         async def work(task_id: str, session_factory: async_sessionmaker[AsyncSession]) -> None:
+            template = await get_project_template_config(self.session_factory, project_id)
+            clients = self.template_client_resolver.resolve_dialogue_clients(template)
             for index, slide in enumerate(slides, start=1):
                 await self.runtime.wait_if_paused(task_id)
                 async with session_factory() as session:
                     await GenerateSlideDialoguesUseCase(
                         session,
-                        self.dialogue_generator,
-                        self.prompt_strategy,
+                        clients.dialogue_generator,
+                        clients.prompt_strategy,
                         self.asset_store,
                         self.settings,
                     ).execute(project_id, slide.id)
@@ -224,22 +242,16 @@ class QueueBatchAudioGenerationUseCase:
         runtime: BackgroundTaskRunner,
         session_factory: async_sessionmaker[AsyncSession],
         asset_store: AssetStore,
-        audio_synthesizer: AudioSynthesizer,
         audio_processor: AudioProcessor,
-        dialogue_generator: DialogueGenerator,
-        prompt_strategy: DialoguePromptStrategy,
-        audio_cue_strategy: AudioCueStrategy,
+        template_client_resolver: TemplateClientResolver,
         settings: Settings,
     ) -> None:
         self.session = session
         self.runtime = runtime
         self.session_factory = session_factory
         self.asset_store = asset_store
-        self.audio_synthesizer = audio_synthesizer
         self.audio_processor = audio_processor
-        self.dialogue_generator = dialogue_generator
-        self.prompt_strategy = prompt_strategy
-        self.audio_cue_strategy = audio_cue_strategy
+        self.template_client_resolver = template_client_resolver
         self.settings = settings
         self.projects = ProjectRepository(session)
         self.slides = SlideRepository(session)
@@ -262,17 +274,19 @@ class QueueBatchAudioGenerationUseCase:
         ).info("task_queued")
 
         async def work(task_id: str, session_factory: async_sessionmaker[AsyncSession]) -> None:
+            template = await get_project_template_config(self.session_factory, project_id)
+            clients = self.template_client_resolver.resolve_audio_clients(template)
             for index, slide in enumerate(slides, start=1):
                 await self.runtime.wait_if_paused(task_id)
                 async with session_factory() as session:
                     await GenerateSlideAudioUseCase(
                         session,
                         self.asset_store,
-                        self.audio_synthesizer,
+                        clients.audio_synthesizer,
                         self.audio_processor,
-                        self.dialogue_generator,
-                        self.prompt_strategy,
-                        self.audio_cue_strategy,
+                        clients.dialogue_generator,
+                        clients.dialogue_prompt_strategy,
+                        clients.audio_cue_strategy,
                         self.settings,
                     ).execute(project_id, slide.id)
                     await TaskRecordService(session).mark_progress(task_id, index)
@@ -383,28 +397,22 @@ class ResumeTaskUseCase:
         runtime: BackgroundTaskRunner,
         session_factory: async_sessionmaker[AsyncSession],
         image_generator: ImageGenerator,
-        dialogue_generator: DialogueGenerator,
-        prompt_strategy: DialoguePromptStrategy,
-        audio_synthesizer: AudioSynthesizer,
         audio_processor: AudioProcessor,
-        audio_cue_strategy: AudioCueStrategy,
         image_preprocessor: ImagePreprocessor,
         video_renderer: VideoRenderer,
         asset_store: AssetStore,
+        template_client_resolver: TemplateClientResolver,
         settings: Settings,
     ) -> None:
         self.session = session
         self.runtime = runtime
         self.session_factory = session_factory
         self.image_generator = image_generator
-        self.dialogue_generator = dialogue_generator
-        self.prompt_strategy = prompt_strategy
-        self.audio_synthesizer = audio_synthesizer
         self.audio_processor = audio_processor
-        self.audio_cue_strategy = audio_cue_strategy
         self.image_preprocessor = image_preprocessor
         self.video_renderer = video_renderer
         self.asset_store = asset_store
+        self.template_client_resolver = template_client_resolver
         self.settings = settings
         self.tasks = TaskRecordService(session)
         self.slides = SlideRepository(session)
@@ -474,6 +482,7 @@ class ResumeTaskUseCase:
         settings = self.settings
 
         async def work(task_id: str, _: async_sessionmaker[AsyncSession]) -> None:
+            template = await get_project_template_config(session_factory, project_id)
             for index, slide in enumerate(slides[resume_from:], start=resume_from + 1):
                 await runtime.wait_if_paused(task_id)
                 async with session_factory() as session:
@@ -482,6 +491,7 @@ class ResumeTaskUseCase:
                         image_generator,
                         asset_store,
                         settings,
+                        template,
                     ).execute(project_id, slide.id)
                     await TaskRecordService(session).mark_progress(task_id, index)
 
@@ -494,20 +504,21 @@ class ResumeTaskUseCase:
         resume_from: int,
     ) -> Callable[[str, async_sessionmaker[AsyncSession]], Awaitable[None]]:
         runtime = self.runtime
-        dialogue_generator = self.dialogue_generator
-        prompt_strategy = self.prompt_strategy
+        resolver = self.template_client_resolver
         asset_store = self.asset_store
         session_factory = self.session_factory
         settings = self.settings
 
         async def work(task_id: str, _: async_sessionmaker[AsyncSession]) -> None:
+            template = await get_project_template_config(session_factory, project_id)
+            clients = resolver.resolve_dialogue_clients(template)
             for index, slide in enumerate(slides[resume_from:], start=resume_from + 1):
                 await runtime.wait_if_paused(task_id)
                 async with session_factory() as session:
                     await GenerateSlideDialoguesUseCase(
                         session,
-                        dialogue_generator,
-                        prompt_strategy,
+                        clients.dialogue_generator,
+                        clients.prompt_strategy,
                         asset_store,
                         settings,
                     ).execute(project_id, slide.id)
@@ -522,27 +533,26 @@ class ResumeTaskUseCase:
         resume_from: int,
     ) -> Callable[[str, async_sessionmaker[AsyncSession]], Awaitable[None]]:
         runtime = self.runtime
-        audio_synthesizer = self.audio_synthesizer
         audio_processor = self.audio_processor
-        dialogue_generator = self.dialogue_generator
-        prompt_strategy = self.prompt_strategy
-        audio_cue_strategy = self.audio_cue_strategy
+        resolver = self.template_client_resolver
         asset_store = self.asset_store
         session_factory = self.session_factory
         settings = self.settings
 
         async def work(task_id: str, _: async_sessionmaker[AsyncSession]) -> None:
+            template = await get_project_template_config(session_factory, project_id)
+            clients = resolver.resolve_audio_clients(template)
             for index, slide in enumerate(slides[resume_from:], start=resume_from + 1):
                 await runtime.wait_if_paused(task_id)
                 async with session_factory() as session:
                     await GenerateSlideAudioUseCase(
                         session,
                         asset_store,
-                        audio_synthesizer,
+                        clients.audio_synthesizer,
                         audio_processor,
-                        dialogue_generator,
-                        prompt_strategy,
-                        audio_cue_strategy,
+                        clients.dialogue_generator,
+                        clients.dialogue_prompt_strategy,
+                        clients.audio_cue_strategy,
                         settings,
                     ).execute(project_id, slide.id)
                     await TaskRecordService(session).mark_progress(task_id, index)

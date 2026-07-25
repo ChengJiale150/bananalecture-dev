@@ -71,20 +71,6 @@ class AudioGenerationSettings(BaseModel):
     BASE_DELAY_SECONDS: float = Field(default=5.0, ge=0.0)
     MAX_DELAY_SECONDS: float = Field(default=60.0, gt=0.0)
     EXPONENTIAL_BASE: float = Field(default=2.0, gt=1.0)
-    DEFAULT_VOICE_GROUP: str = "default"
-    VOICE_GROUPS: dict[str, dict[str, str]] = Field(
-        default_factory=lambda: {
-            "default": {
-                "旁白": "Chinese (Mandarin)_Male_Announcer",
-                "大雄": "bananalecture_nobita",
-                "哆啦A梦": "bananalecture_doraemon",
-                "道具": "bananalecture_doraemon",
-                "其他男声": "Chinese (Mandarin)_Pure-hearted_Boy",
-                "其他女声": "Chinese (Mandarin)_ExplorativeGirl",
-                "其他": "Chinese (Mandarin)_Radio_Host",
-            }
-        }
-    )
 
 
 class VideoGenerationSettings(BaseModel):

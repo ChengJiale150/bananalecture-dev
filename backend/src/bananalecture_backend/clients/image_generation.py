@@ -30,7 +30,7 @@ class ImageGenerationClient:
         """Store immutable image service settings."""
         self.settings = settings.IMAGE_GENERATION
 
-    async def generate_image(self, prompt: str, reference_image: str | None = None) -> bytes:
+    async def generate_image(self, prompt: str, reference_images: list[str] | None = None) -> bytes:
         """Generate an image by trying the configured models in order."""
         prompt_text = prompt.strip()
         if not self.settings.API_KEY:
@@ -45,13 +45,13 @@ class ImageGenerationClient:
         global_logger.bind(
             model_list=list(self.settings.MODEL_LIST),
             prompt_length=len(prompt_text),
-            has_reference=reference_image is not None,
+            has_reference=reference_images is not None and len(reference_images) > 0,
         ).info("external_image_request")
 
         failures: list[str] = []
         for model in self.settings.MODEL_LIST:
             try:
-                response = await self._generate(model, prompt_text, reference_image)
+                response = await self._generate(model, prompt_text, reference_images)
                 image_url = self._extract_image_url(response)
             except (httpx.HTTPError, ExternalServiceError, ValueError) as exc:
                 global_logger.bind(model=model, error=str(exc)).warning("external_image_retry")
@@ -74,12 +74,12 @@ class ImageGenerationClient:
         self,
         model: str,
         prompt: str,
-        reference_image: str | None,
+        reference_images: list[str] | None,
     ) -> dict[str, Any]:
         payload = {
             "model": model,
             "prompt": prompt,
-            "images": [reference_image] if reference_image else [],
+            "images": reference_images or [],
             "aspectRatio": self.settings.ASPECT_RATIO,
             "imageSize": self.settings.IMAGE_SIZE,
             "replyType": "json",

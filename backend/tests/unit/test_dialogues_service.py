@@ -7,7 +7,6 @@ from bananalecture_backend.models import DialogueModel
 from bananalecture_backend.schemas.dialogue import (
     AddDialogueRequest,
     DialogueEmotion,
-    DialogueRole,
     DialogueSpeed,
     UpdateDialogueRequest,
 )
@@ -111,7 +110,7 @@ async def test_add_dialogue_appends_to_end_with_defaults(db_session) -> None:
         project_id,
         slide_id,
         AddDialogueRequest(
-            role=DialogueRole.OTHER_FEMALE,
+            role="其他女声",
             content="Fourth",
             emotion=DialogueEmotion.SAD,
             speed=DialogueSpeed.FAST,
@@ -120,7 +119,7 @@ async def test_add_dialogue_appends_to_end_with_defaults(db_session) -> None:
 
     assert created.idx == 4
     assert created.slide_id == slide_id
-    assert created.role == DialogueRole.OTHER_FEMALE
+    assert created.role == "其他女声"
     assert created.content == "Fourth"
     assert created.emotion == DialogueEmotion.SAD
     assert created.speed == DialogueSpeed.FAST
@@ -140,7 +139,7 @@ async def test_update_dialogue_updates_fields_and_timestamp(db_session) -> None:
         slide_id,
         "dialogue-1",
         UpdateDialogueRequest(
-            role=DialogueRole.DORAEMON,
+            role="哆啦A梦",
             content="Updated",
             emotion=DialogueEmotion.ANGRY,
             speed=DialogueSpeed.SLOW,
@@ -148,7 +147,7 @@ async def test_update_dialogue_updates_fields_and_timestamp(db_session) -> None:
     )
 
     assert updated.id == "dialogue-1"
-    assert updated.role == DialogueRole.DORAEMON
+    assert updated.role == "哆啦A梦"
     assert updated.content == "Updated"
     assert updated.emotion == DialogueEmotion.ANGRY
     assert updated.speed == DialogueSpeed.SLOW

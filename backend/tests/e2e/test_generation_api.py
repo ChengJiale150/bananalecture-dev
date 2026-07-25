@@ -109,7 +109,7 @@ def test_pause_and_resume_generation(client: TestClient, test_settings: Settings
 class _FailingImageClient:
     """Image generator that raises on every call."""
 
-    async def generate_image(self, prompt: str, reference_image: str | None = None) -> bytes:
+    async def generate_image(self, prompt: str, reference_images: list[str] | None = None) -> bytes:
         raise Exception("Test image generation failure")
 
 

@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   DIALOGUE_EMOTIONS,
-  DIALOGUE_ROLES,
   DIALOGUE_SPEEDS,
   type Dialogue,
 } from '@/features/projects/types';
+import { DEFAULT_TEMPLATE_ID, getDialogueRoles } from '@/shared/template-config';
 import { Trash2, ChevronUp, ChevronDown, Plus, X, Edit2, Check } from 'lucide-react';
 import { getEmotionDisplay, getSpeedDisplay } from '../utils';
 
 interface DialogueListProps {
   dialogues: Dialogue[];
   isBusy: boolean;
+  templateId?: string;
   onAdd: () => Promise<Dialogue | null>;
   onUpdate: (dialogue: Dialogue) => Promise<boolean>;
   onDelete: (dialogueId: string) => Promise<boolean>;
@@ -20,6 +21,7 @@ interface DialogueListProps {
 export function DialogueList({
   dialogues,
   isBusy,
+  templateId = DEFAULT_TEMPLATE_ID,
   onAdd,
   onUpdate,
   onDelete,
@@ -27,6 +29,7 @@ export function DialogueList({
 }: DialogueListProps) {
   const [editingDialogueId, setEditingDialogueId] = useState<string | null>(null);
   const [draftDialogue, setDraftDialogue] = useState<Dialogue | null>(null);
+  const ROLES = getDialogueRoles(templateId);
 
   useEffect(() => {
     if (!editingDialogueId) {
@@ -120,7 +123,10 @@ export function DialogueList({
                           }
                           className="text-sm font-bold text-[var(--banana-blue)] border border-gray-300 rounded-lg px-2 py-1"
                         >
-                          {DIALOGUE_ROLES.map(role => (
+                          {(ROLES.includes(activeDialogue.role)
+                            ? ROLES
+                            : [...ROLES, activeDialogue.role]
+                          ).map(role => (
                             <option key={role} value={role}>
                               {role}
                             </option>

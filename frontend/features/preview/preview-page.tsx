@@ -18,6 +18,7 @@ function PreviewContent() {
 
   const {
     plan,
+    projectTemplateId,
     currentSlideIndex,
     setCurrentSlideIndex,
     isLoading,
@@ -109,6 +110,7 @@ function PreviewContent() {
             <DialogueList
               dialogues={displayDialogues}
               isBusy={isDialogueActionPending}
+              templateId={projectTemplateId}
               onAdd={handleAddDialogue}
               onUpdate={handleUpdateDialogue}
               onDelete={handleDeleteDialogue}

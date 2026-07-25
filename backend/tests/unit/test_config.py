@@ -47,11 +47,6 @@ def test_settings_load_from_yaml_and_env_override(tmp_path: Path) -> None:
                 "  BASE_DELAY_SECONDS: 1.5",
                 "  MAX_DELAY_SECONDS: 8.0",
                 "  EXPONENTIAL_BASE: 2.5",
-                '  DEFAULT_VOICE_GROUP: "yaml-default"',
-                "  VOICE_GROUPS:",
-                "    yaml-default:",
-                '      旁白: "yaml-narrator"',
-                '      其他: "yaml-other"',
                 "VIDEO_GENERATION:",
                 "  WIDTH: 1920",
                 "  HEIGHT: 1080",
@@ -82,8 +77,6 @@ def test_settings_load_from_yaml_and_env_override(tmp_path: Path) -> None:
                 "IMAGE_DELIVERY__LOSSLESS=true",
                 "DIALOGUE_GENERATION__PROVIDER__API_KEY=dialogue-env-key",
                 "AUDIO_GENERATION__PROVIDER__API_KEY=audio-env-key",
-                "AUDIO_GENERATION__DEFAULT_VOICE_GROUP=env-default",
-                'AUDIO_GENERATION__VOICE_GROUPS={"env-default":{"旁白":"env-narrator","其他":"env-other"}}',
                 "VIDEO_GENERATION__FPS=24",
                 "VIDEO_GENERATION__BACKGROUND_COLOR=navy",
             ]
@@ -125,11 +118,6 @@ def test_settings_load_from_yaml_and_env_override(tmp_path: Path) -> None:
     assert settings.AUDIO_GENERATION.PROVIDER.API_KEY == "audio-env-key"
     assert settings.AUDIO_GENERATION.PROVIDER.MODEL == "yaml-speech"
     assert settings.AUDIO_GENERATION.PROVIDER.REQUEST_TIMEOUT_SECONDS == 18.0
-    assert settings.AUDIO_GENERATION.DEFAULT_VOICE_GROUP == "env-default"
-    assert settings.AUDIO_GENERATION.VOICE_GROUPS == {
-        "yaml-default": {"旁白": "yaml-narrator", "其他": "yaml-other"},
-        "env-default": {"旁白": "env-narrator", "其他": "env-other"},
-    }
     assert settings.AUDIO_GENERATION.SAMPLE_RATE == 44100
     assert settings.AUDIO_GENERATION.BITRATE == 192000
     assert settings.AUDIO_GENERATION.FORMAT == "mp3"

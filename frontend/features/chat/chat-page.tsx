@@ -8,7 +8,7 @@ import remarkGfm from 'remark-gfm';
 
 import { useRouter } from 'next/navigation';
 import { useBasePath } from '@/contexts/base-path-context';
-import ChatInput from '@/features/chat/components/chat-input';
+import ChatInput, { type ChatOptions } from '@/features/chat/components/chat-input';
 import PPTPlanPreview from '@/features/chat/components/ppt-plan-preview';
 import Sidebar from '@/features/chat/components/sidebar';
 import {
@@ -29,6 +29,7 @@ import {
   stringifyProjectMessages,
 } from '@/features/projects';
 import type { PlannerAgentUIMessage } from '@/server/planner/create-planner-agent';
+import { DEFAULT_TEMPLATE_ID, type TemplateId } from '@/shared/template-config';
 import {
   addSlide,
   createProject,
@@ -40,6 +41,7 @@ import {
   replaceProjectSlides,
   updateSlide,
   updateProjectMessages,
+  updateProjectTemplate,
   updateProjectTitleAndMessages,
   deleteSlide as deleteProjectSlide,
 } from '@/features/projects';
@@ -68,9 +70,11 @@ function extractAutoTitle(messages: any[]) {
 function ChatInterface({
   project,
   onProjectUpdate,
+  onTemplateChange,
 }: {
   project: ProjectRecord;
   onProjectUpdate: (project: Partial<ProjectRecord> & { id: string }) => void;
+  onTemplateChange?: (projectId: string, templateId: string) => Promise<void>;
 }) {
 
   const { basePath } = useBasePath();
@@ -273,15 +277,20 @@ function ChatInterface({
   }, [basePath, chatId, router]);
 
   const handleSendMessage = useCallback(
-    (text: string, options?: any) => {
+    (text: string, options?: ChatOptions) => {
+      const template = options?.template ?? project.templateId ?? DEFAULT_TEMPLATE_ID;
+      if (options?.template && options.template !== project.templateId) {
+        void onTemplateChange?.(chatId, options.template);
+      }
       const body: any = {
         id: chatId,
         pptPlan: effectivePptPlan,
         ...options,
+        template,
       };
       sendMessage({ text }, { body });
     },
-    [chatId, effectivePptPlan, sendMessage]
+    [chatId, effectivePptPlan, onTemplateChange, project.templateId, sendMessage]
   );
 
   useEffect(() => {
@@ -335,7 +344,13 @@ function ChatInterface({
           <h2 className="mb-2 text-3xl font-black tracking-tight text-gray-900">Banana Lecture</h2>
           <p className="text-center text-lg font-medium text-gray-600 mb-8">What can I help you with today?</p>
           <div className="w-full max-w-3xl">
-            <ChatInput status={status} onSubmit={handleSendMessage} stop={stop} isCentered={true} />
+            <ChatInput
+              status={status}
+              onSubmit={handleSendMessage}
+              stop={stop}
+              isCentered={true}
+              initialTemplate={(project.templateId ?? DEFAULT_TEMPLATE_ID) as TemplateId}
+            />
           </div>
         </div>
       ) : (
@@ -410,6 +425,7 @@ function ChatInterface({
                             return (
                               <ToolView
                                 key={index}
+                                templateId={project.templateId}
                                 invocation={{
                                   toolName: 'create_ppt_plan',
                                   args:
@@ -455,7 +471,12 @@ function ChatInterface({
 
           <div className="border-t border-gray-200 bg-gray-50">
             <div className="w-full px-4 py-4">
-              <ChatInput status={status} onSubmit={handleSendMessage} stop={stop} isCentered={false} />
+              <ChatInput
+                status={status}
+                onSubmit={handleSendMessage}
+                stop={stop}
+                isCentered={false}
+              />
             </div>
           </div>
         </>
@@ -597,7 +618,7 @@ export default function ChatPage() {
     if (isCreatingProject) return;
     setIsCreatingProject(true);
     try {
-      const projectId = await createProject({ name: DEFAULT_PROJECT_TITLE });
+      const projectId = await createProject({ name: DEFAULT_PROJECT_TITLE, template_id: DEFAULT_TEMPLATE_ID });
       await loadProjectsPage(DEFAULT_PROJECT_LIST_PAGE);
       await refreshCurrentProject(projectId);
     } finally {
@@ -649,6 +670,16 @@ export default function ChatPage() {
       }
     },
     [currentProject?.id, loadProjectsPage, projectPagination.page, refreshCurrentProject]
+  );
+
+  const handleTemplateChange = useCallback(
+    async (projectId: string, templateId: string) => {
+      await updateProjectTemplate(projectId, templateId);
+      setCurrentProject(prev =>
+        prev?.id === projectId ? { ...prev, templateId } : prev
+      );
+    },
+    []
   );
 
   const handleProjectUpdate = useCallback(
@@ -721,6 +752,7 @@ export default function ChatPage() {
             key={currentProject.id}
             project={currentProject}
             onProjectUpdate={handleProjectUpdate}
+            onTemplateChange={handleTemplateChange}
           />
         ) : (
           <div className="flex items-center justify-center h-full text-gray-400">

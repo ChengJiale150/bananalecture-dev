@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bananalecture_backend.core.errors import NotFoundError
+from bananalecture_backend.core.templates import DEFAULT_TEMPLATE_ID
 from bananalecture_backend.core.time import utc_now
 from bananalecture_backend.db.repositories import ProjectRepository, SlideRepository
 from bananalecture_backend.models import ProjectModel
@@ -37,6 +38,7 @@ class ProjectResourceService:
             id=new_id(),
             user_id=user_id,
             name=request.name,
+            template_id=request.template_id or DEFAULT_TEMPLATE_ID,
             messages=None,
             video_path=None,
             created_at=timestamp,
@@ -79,6 +81,7 @@ class ProjectResourceService:
                 "id": project.id,
                 "user_id": project.user_id,
                 "name": project.name,
+                "template_id": project.template_id,
                 "messages": project.messages,
                 "video_path": project.video_path,
                 "created_at": project.created_at,
@@ -97,6 +100,8 @@ class ProjectResourceService:
             values["name"] = request.name
         if request.messages is not None:
             values["messages"] = request.messages
+        if request.template_id is not None:
+            values["template_id"] = request.template_id
 
         await self.projects.update(project, values)
         await self.session.commit()

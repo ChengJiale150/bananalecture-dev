@@ -1,15 +1,22 @@
 from typing import Any
 
 import pytest
+from pydantic import ValidationError
 
-from bananalecture_backend.clients.dialogue_generation import DialogueGenerationClient, GeneratedDialogueItem
+from bananalecture_backend.clients.dialogue_generation import (
+    _ITEM_MODELS,
+    DialogueGenerationClient,
+    GeneratedDialogueItem,
+    XiyoujiDialogueItem,
+)
 from bananalecture_backend.core.config import (
     DialogueGenerationProviderSettings,
     DialogueGenerationSettings,
     Settings,
 )
 from bananalecture_backend.core.errors import ConfigurationError, ExternalServiceError
-from bananalecture_backend.schemas.dialogue import DialogueEmotion, DialogueRole, DialogueSpeed
+from bananalecture_backend.core.templates import DEFAULT_TEMPLATE_ID, get_template_config, get_valid_template_ids
+from bananalecture_backend.schemas.dialogue import DialogueEmotion, DialogueSpeed
 
 
 class StubAgent:
@@ -38,13 +45,17 @@ def _build_settings() -> Settings:
     )
 
 
+def _doraemon_template() -> object:
+    return get_template_config(DEFAULT_TEMPLATE_ID)
+
+
 @pytest.mark.asyncio
 async def test_dialogue_client_passes_prompt_without_image() -> None:
-    client = DialogueGenerationClient(_build_settings())
+    client = DialogueGenerationClient(_build_settings(), _doraemon_template())
     stub_agent = StubAgent(
         [
             GeneratedDialogueItem(
-                role=DialogueRole.NARRATOR,
+                role="旁白",
                 content="先用文本输入生成。",
                 emotion=DialogueEmotion.NEUTRAL,
                 speed=DialogueSpeed.MEDIUM,
@@ -61,11 +72,11 @@ async def test_dialogue_client_passes_prompt_without_image() -> None:
 
 @pytest.mark.asyncio
 async def test_dialogue_client_appends_image_when_present() -> None:
-    client = DialogueGenerationClient(_build_settings())
+    client = DialogueGenerationClient(_build_settings(), _doraemon_template())
     stub_agent = StubAgent(
         [
             GeneratedDialogueItem(
-                role=DialogueRole.NARRATOR,
+                role="旁白",
                 content="带图输入生成。",
                 emotion=DialogueEmotion.NEUTRAL,
                 speed=DialogueSpeed.MEDIUM,
@@ -82,7 +93,7 @@ async def test_dialogue_client_appends_image_when_present() -> None:
 
 @pytest.mark.asyncio
 async def test_dialogue_client_wraps_upstream_errors() -> None:
-    client = DialogueGenerationClient(_build_settings())
+    client = DialogueGenerationClient(_build_settings(), _doraemon_template())
     client.agent = StubAgent(RuntimeError("boom"))  # type: ignore[assignment]
 
     with pytest.raises(ExternalServiceError, match="Dialogue generation failed: boom"):
@@ -98,4 +109,32 @@ def test_dialogue_client_requires_api_key() -> None:
     )
 
     with pytest.raises(ConfigurationError, match="API_KEY"):
-        DialogueGenerationClient(settings)
+        DialogueGenerationClient(settings, _doraemon_template())
+
+
+def test_item_models_cover_all_templates_and_match_roles() -> None:
+    for template_id in get_valid_template_ids():
+        template = get_template_config(template_id)
+        assert template is not None
+        item_model = _ITEM_MODELS[template_id]
+
+        role_schema = item_model.model_json_schema()["properties"]["role"]
+        assert role_schema["enum"] == template.roles
+
+
+def test_constrained_item_model_rejects_unknown_role() -> None:
+    item = XiyoujiDialogueItem(
+        role="悟空",
+        content="为师来讲讲。",
+        emotion=DialogueEmotion.NEUTRAL,
+        speed=DialogueSpeed.MEDIUM,
+    )
+    assert item.role == "悟空"
+
+    with pytest.raises(ValidationError):
+        XiyoujiDialogueItem(
+            role="唐僧",
+            content="非法角色。",
+            emotion=DialogueEmotion.NEUTRAL,
+            speed=DialogueSpeed.MEDIUM,
+        )

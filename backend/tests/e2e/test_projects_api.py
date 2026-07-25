@@ -153,6 +153,17 @@ def test_project_api_returns_validation_errors_for_bad_requests(client: TestClie
 
 
 @pytest.mark.e2e
+def test_create_project_rejects_unknown_template_id(client: TestClient, test_settings: Settings) -> None:
+    response = client.post(
+        f"{test_settings.API.V1_STR}/projects",
+        json={"name": "Bad template", "template_id": "unknown-template"},
+        headers={"X-User-Id": "admin"},
+    )
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+    assert response.json()["message"] == "Validation error"
+
+
+@pytest.mark.e2e
 def test_project_api_returns_not_found_for_missing_resources(client: TestClient, test_settings: Settings) -> None:
     for method, path in (
         ("get", f"{test_settings.API.V1_STR}/projects/missing-project"),

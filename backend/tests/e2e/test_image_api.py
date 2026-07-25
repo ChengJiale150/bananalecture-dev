@@ -47,7 +47,7 @@ def test_generate_image_uses_slide_content(
     response = client.post(f"{test_settings.API.V1_STR}/projects/{project_id}/slides/{slide_id}/image/generate")
     assert response.status_code == status.HTTP_200_OK
 
-    assert fake_image_client.calls == [{"prompt": "A lesson about gravity", "reference_image": None}]
+    assert fake_image_client.calls == [{"prompt": "A lesson about gravity", "reference_images": None}]
 
     detail_response = client.get(f"{test_settings.API.V1_STR}/projects/{project_id}")
     assert detail_response.status_code == status.HTTP_200_OK
@@ -98,7 +98,7 @@ def test_modify_image_uses_existing_image_as_data_url(
         *StorageLayout.slide_image_delivery(project_id, slide_id).split("/"),
     ).exists()
     expected_reference = f"data:image/png;base64,{b64encode(original_image_path.read_bytes()).decode('ascii')}"
-    assert fake_image_client.calls == [{"prompt": "Add a bright sun", "reference_image": expected_reference}]
+    assert fake_image_client.calls == [{"prompt": "Add a bright sun", "reference_images": [expected_reference]}]
 
 
 def test_modify_image_requires_existing_image(

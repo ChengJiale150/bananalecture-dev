@@ -23,9 +23,10 @@ from bananalecture_backend.application.ports import (
     VideoRenderer,
 )
 from bananalecture_backend.application.strategies import AudioCueStrategy, DialoguePromptContext, DialoguePromptStrategy
-from bananalecture_backend.core.config import Settings
+from bananalecture_backend.core.config import ROOT_DIR, Settings
 from bananalecture_backend.core.errors import BadRequestError, NotFoundError
-from bananalecture_backend.core.logging_config import get_project_logger
+from bananalecture_backend.core.logging_config import get_global_logger, get_project_logger
+from bananalecture_backend.core.templates import TemplateConfig
 from bananalecture_backend.core.time import utc_now
 from bananalecture_backend.db.repositories import DialogueRepository, ProjectRepository, SlideRepository
 from bananalecture_backend.infrastructure.storage_layout import StorageLayout
@@ -44,6 +45,54 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from sqlalchemy.ext.asyncio import AsyncSession
+
+global_logger = get_global_logger()
+
+_REFERENCE_IMAGE_MAX_DIMENSION = 512
+"""Longest-side bound for template reference images sent to the image API."""
+
+_REFERENCE_IMAGES_CACHE: dict[str, list[str] | None] = {}
+
+
+def _encode_reference_image(image_bytes: bytes) -> bytes:
+    """Downscale and re-encode a reference image as PNG (keeps alpha) to bound payload size."""
+    with Image.open(BytesIO(image_bytes)) as image:
+        image.load()
+        prepared = image.copy()
+
+    prepared.thumbnail(
+        (_REFERENCE_IMAGE_MAX_DIMENSION, _REFERENCE_IMAGE_MAX_DIMENSION),
+        Image.Resampling.LANCZOS,
+    )
+
+    output = BytesIO()
+    prepared.save(output, format="PNG", optimize=True)
+    return output.getvalue()
+
+
+def _load_and_encode_reference_image(image_path: Path) -> bytes:
+    """Read a reference image from disk and return its compressed PNG bytes."""
+    return _encode_reference_image(image_path.read_bytes())
+
+
+async def _load_template_reference_images(template_config: TemplateConfig) -> list[str] | None:
+    """Load template reference images as compressed base64 PNG data URLs, cached per template id."""
+    if template_config.id in _REFERENCE_IMAGES_CACHE:
+        return _REFERENCE_IMAGES_CACHE[template_config.id]
+    refs: list[str] = []
+    assets_dir = ROOT_DIR / "assets" / template_config.assets_dir
+    for filename in template_config.reference_images:
+        image_path = assets_dir / filename
+        try:
+            image_bytes = await asyncio.to_thread(_load_and_encode_reference_image, image_path)
+        except FileNotFoundError:
+            global_logger.bind(path=str(image_path)).warning("template_reference_image_missing")
+            continue
+        encoded = b64encode(image_bytes).decode("ascii")
+        refs.append(f"data:image/png;base64,{encoded}")
+    result = refs or None
+    _REFERENCE_IMAGES_CACHE[template_config.id] = result
+    return result
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,11 +168,13 @@ class GenerateSlideImageUseCase:
         image_generator: ImageGenerator,
         asset_store: AssetStore,
         settings: Settings,
+        template_config: TemplateConfig | None = None,
     ) -> None:
         self.session = session
         self.image_generator = image_generator
         self.asset_store = asset_store
         self.settings = settings
+        self.template_config = template_config
         self.image_persistence = _SlideImagePersistence(asset_store, settings)
         self.slides = SlideRepository(session)
         self.slide_resource = SlideResourceService(session)
@@ -139,9 +190,13 @@ class GenerateSlideImageUseCase:
             logger.bind(slide_id=slide_id).error("image_generation_failed", error="Slide content empty")
             raise BadRequestError("Slide content must not be empty")
 
-        logger.bind(slide_id=slide_id, prompt_length=len(prompt)).info("image_generation_started")
+        reference_images = await self._load_template_reference_images()
+
+        logger.bind(slide_id=slide_id, prompt_length=len(prompt), has_reference=reference_images is not None).info(
+            "image_generation_started",
+        )
         try:
-            image_bytes = await self.image_generator.generate_image(prompt)
+            image_bytes = await self.image_generator.generate_image(prompt, reference_images)
             path = await self.image_persistence.write_generated_image(project_id, slide_id, image_bytes)
             await self.slide_resource.set_image_path(slide_id, path)
             await self.session.commit()
@@ -149,6 +204,12 @@ class GenerateSlideImageUseCase:
             logger.bind(slide_id=slide_id).exception("image_generation_failed")
             raise
         logger.bind(slide_id=slide_id, path=path).info("image_generation_succeeded")
+
+    async def _load_template_reference_images(self) -> list[str] | None:
+        """Load template reference images and encode as base64 data URLs."""
+        if not self.template_config or not self.template_config.reference_images:
+            return None
+        return await _load_template_reference_images(self.template_config)
 
 
 class ModifySlideImageUseCase:
@@ -187,8 +248,8 @@ class ModifySlideImageUseCase:
         logger.bind(slide_id=slide_id, prompt_length=len(prompt_text)).info("image_modify_started")
         try:
             current_image = await self.asset_store.read_bytes(slide.image_path)
-            reference_image = self._as_data_url(current_image)
-            image_bytes = await self.image_generator.generate_image(prompt_text, reference_image)
+            reference_images = [self._as_data_url(current_image)]
+            image_bytes = await self.image_generator.generate_image(prompt_text, reference_images)
             path = await self.image_persistence.write_generated_image(project_id, slide_id, image_bytes)
             await self.slide_resource.set_image_path(slide_id, path)
             await self.session.commit()
@@ -276,7 +337,7 @@ class GenerateSlideDialoguesUseCase:
                 DialogueModel(
                     id=new_id(),
                     slide_id=slide_id,
-                    role=item.role.value,
+                    role=item.role,
                     content=item.content,
                     emotion=item.emotion.value,
                     speed=item.speed.value,

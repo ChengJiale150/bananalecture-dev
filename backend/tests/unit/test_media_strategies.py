@@ -5,10 +5,19 @@ from bananalecture_backend.application.strategies import (
     DefaultDialoguePromptStrategy,
     DialoguePromptContext,
 )
+from bananalecture_backend.core.templates import get_template_config, DEFAULT_TEMPLATE_ID
+
+
+def _doraemon_cue() -> object:
+    return get_template_config(DEFAULT_TEMPLATE_ID).cue_config
+
+
+def _xiyouji_cue() -> object:
+    return get_template_config("xiyouji").cue_config
 
 
 def test_default_dialogue_prompt_strategy_builds_cover_prompt_without_previous_script() -> None:
-    prompt = DefaultDialoguePromptStrategy().build(
+    prompt = DefaultDialoguePromptStrategy(_doraemon_cue()).build(
         DialoguePromptContext(
             slide_type="cover",
             title="Intro",
@@ -23,7 +32,7 @@ def test_default_dialogue_prompt_strategy_builds_cover_prompt_without_previous_s
 
 
 def test_default_dialogue_prompt_strategy_builds_prompt_with_previous_script() -> None:
-    prompt = DefaultDialoguePromptStrategy().build(
+    prompt = DefaultDialoguePromptStrategy(_doraemon_cue()).build(
         DialoguePromptContext(
             slide_type="content",
             title="Motion",
@@ -38,10 +47,20 @@ def test_default_dialogue_prompt_strategy_builds_prompt_with_previous_script() -
     assert "禁止生成道具角色" not in prompt
 
 
-def test_default_audio_cue_strategy_resolves_expected_assets() -> None:
-    strategy = DefaultAudioCueStrategy(Path("/tmp/assets"))
+def test_doraemon_audio_cue_strategy_resolves_expected_assets() -> None:
+    strategy = DefaultAudioCueStrategy(Path("/tmp/assets"), _doraemon_cue())
 
     assert strategy.dialogue_prefix_assets("旁白") == []
     assert strategy.dialogue_prefix_assets("道具") == [Path("/tmp/assets/gadgets.mp3")]
     assert strategy.slide_prefix_assets("content") == []
     assert strategy.slide_prefix_assets("cover") == [Path("/tmp/assets/cues.mp3")]
+
+
+def test_xiyouji_audio_cue_strategy_returns_no_assets() -> None:
+    strategy = DefaultAudioCueStrategy(Path("/tmp/assets"), _xiyouji_cue())
+
+    assert strategy.dialogue_prefix_assets("旁白") == []
+    assert strategy.dialogue_prefix_assets("悟空") == []
+    assert strategy.dialogue_prefix_assets("八戒") == []
+    assert strategy.slide_prefix_assets("cover") == []
+    assert strategy.slide_prefix_assets("content") == []

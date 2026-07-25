@@ -88,6 +88,7 @@ export function usePreviewState(
   const searchParams = useSearchParams();
   const [plan, setPlan] = useState<PPTPlan | null>(null);
   const [projectId, setProjectId] = useState(projectIdFromUrl || '');
+  const [projectTemplateId, setProjectTemplateId] = useState<string | undefined>();
   const [projectVideoPath, setProjectVideoPath] = useState<string | undefined>();
   const [currentSlideIndex, setCurrentSlideIndexState] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -125,6 +126,7 @@ export function usePreviewState(
 
   const applyProjectToState = useCallback((project: Awaited<ReturnType<typeof getProject>>) => {
     setPlan(project.pptPlan ?? null);
+    setProjectTemplateId(project.templateId);
     setProjectVideoPath(project.videoPath ?? undefined);
     writeCachedProject(project);
     return project;
@@ -776,6 +778,7 @@ export function usePreviewState(
   return {
     plan,
     projectId,
+    projectTemplateId,
     currentSlideIndex,
     setCurrentSlideIndex,
     isLoading,

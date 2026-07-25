@@ -43,6 +43,7 @@ function createProject(): ProjectRecord {
   return {
     id: 'project-1',
     userId: 'admin',
+    templateId: 'doraemon',
     title: 'Project 1',
     createdAt: 1,
     updatedAt: 2,

@@ -1,16 +1,29 @@
 # ruff: noqa: D102, EM101, TC001, TRY003
 
 from datetime import datetime
+from typing import Annotated
 
-from pydantic import Field, model_validator
+from pydantic import AfterValidator, Field, model_validator
 
+from bananalecture_backend.core.templates import get_valid_template_ids
 from bananalecture_backend.schemas.common import APIModel
+
+
+def _validate_template_id(v: str) -> str:
+    if v not in get_valid_template_ids():
+        msg = f"未知模板 ID: {v!r}"
+        raise ValueError(msg)
+    return v
+
+
+TemplateId = Annotated[str, AfterValidator(_validate_template_id)]
 
 
 class CreateProjectRequest(APIModel):
     """Payload for project creation."""
 
     name: str = Field(min_length=1, max_length=255)
+    template_id: TemplateId = "doraemon"
 
 
 class UpdateProjectRequest(APIModel):
@@ -18,10 +31,11 @@ class UpdateProjectRequest(APIModel):
 
     name: str | None = Field(default=None, min_length=1, max_length=255)
     messages: str | None = None
+    template_id: TemplateId | None = None
 
     @model_validator(mode="after")
     def validate_non_empty(self) -> "UpdateProjectRequest":
-        if self.name is None and self.messages is None:
+        if self.name is None and self.messages is None and self.template_id is None:
             raise ValueError("at least one field must be provided")
         return self
 
@@ -32,6 +46,7 @@ class ProjectSummary(APIModel):
     id: str
     user_id: str
     name: str
+    template_id: str
     messages: str | None = None
     video_path: str | None = None
     created_at: datetime
@@ -43,6 +58,7 @@ class ProjectListItem(APIModel):
 
     id: str
     name: str
+    template_id: str
     created_at: datetime
     updated_at: datetime
 

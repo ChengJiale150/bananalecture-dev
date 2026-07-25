@@ -1,14 +1,9 @@
-import {
-  DIALOGUE_EMOTIONS,
-  DIALOGUE_ROLES,
-  DIALOGUE_SPEEDS,
-  SLIDE_TYPES,
-} from '@/shared/api/banana/types';
+import { DIALOGUE_EMOTIONS, DIALOGUE_SPEEDS, SLIDE_TYPES } from '@/shared/api/banana/types';
 
-export { DIALOGUE_EMOTIONS, DIALOGUE_ROLES, DIALOGUE_SPEEDS, SLIDE_TYPES };
+export { DIALOGUE_EMOTIONS, DIALOGUE_SPEEDS, SLIDE_TYPES };
 
 export type SlideType = (typeof SLIDE_TYPES)[number];
-export type DialogueRole = (typeof DIALOGUE_ROLES)[number];
+export type DialogueRole = string;
 export type DialogueEmotion = (typeof DIALOGUE_EMOTIONS)[number];
 export type DialogueSpeed = (typeof DIALOGUE_SPEEDS)[number];
 
@@ -75,6 +70,7 @@ export interface ProjectListPage {
 
 export interface ProjectRecord extends ProjectSummary {
   userId: string;
+  templateId: string;
   messages: unknown[];
   videoPath?: string;
   pptPlan?: PPTPlan;

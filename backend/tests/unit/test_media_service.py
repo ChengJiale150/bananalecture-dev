@@ -17,12 +17,13 @@ from bananalecture_backend.application.use_cases import (
 )
 from bananalecture_backend.application.strategies import DefaultAudioCueStrategy, DefaultDialoguePromptStrategy
 from bananalecture_backend.core.config import ImageDeliverySettings, ROOT_DIR, Settings
+from bananalecture_backend.core.templates import get_template_config, DEFAULT_TEMPLATE_ID
 from bananalecture_backend.core.errors import BadRequestError, ExternalServiceError, NotFoundError
 from bananalecture_backend.db.repositories import DialogueRepository, ProjectRepository, SlideRepository, TaskRepository
 from bananalecture_backend.infrastructure.storage import StorageService
 from bananalecture_backend.infrastructure.storage_layout import StorageLayout
 from bananalecture_backend.infrastructure.task_runtime import InMemoryBackgroundTaskRunner
-from bananalecture_backend.schemas.dialogue import AddDialogueRequest, DialogueEmotion, DialogueRole, DialogueSpeed
+from bananalecture_backend.schemas.dialogue import AddDialogueRequest, DialogueEmotion, DialogueSpeed
 from bananalecture_backend.schemas.project import CreateProjectRequest
 from bananalecture_backend.schemas.slide import SlideCreate, SlideType
 from bananalecture_backend.services.resources import (
@@ -125,7 +126,7 @@ async def bananalecture_add_dialogue(
     project_id: str,
     slide_id: str,
     *,
-    role: DialogueRole,
+    role: str,
     content: str,
 ) -> str:
     dialogue = await DialogueResourceService(db_session).add_dialogue(
@@ -263,14 +264,14 @@ async def test_generate_slide_audio_writes_dialogue_and_slide_audio(
         db_session,
         project_id,
         slide_id,
-        role=DialogueRole.NOBITA,
+        role="大雄",
         content="第一句",
     )
     await bananalecture_add_dialogue(
         db_session,
         project_id,
         slide_id,
-        role=DialogueRole.PROP,
+        role="道具",
         content="竹蜻蜓",
     )
 
@@ -278,6 +279,7 @@ async def test_generate_slide_audio_writes_dialogue_and_slide_audio(
     await storage.initialize()
     fake_audio_client = FakeAudioGenerationClient()
     fake_processing = FakeAudioProcessingService()
+    d_config = get_template_config(DEFAULT_TEMPLATE_ID)
 
     await GenerateSlideAudioUseCase(
         db_session,
@@ -285,8 +287,8 @@ async def test_generate_slide_audio_writes_dialogue_and_slide_audio(
         fake_audio_client,
         fake_processing,
         fake_dialogue_client,
-        DefaultDialoguePromptStrategy(),
-        DefaultAudioCueStrategy(ROOT_DIR / "assets"),
+        DefaultDialoguePromptStrategy(d_config.cue_config),
+        DefaultAudioCueStrategy(ROOT_DIR / "assets" / d_config.assets_dir, d_config.cue_config),
         settings=test_settings,
     ).execute(project_id, slide_id)
 
@@ -319,7 +321,7 @@ async def test_generate_slide_audio_propagates_processing_failures(
         db_session,
         project_id,
         slide_id,
-        role=DialogueRole.NARRATOR,
+        role="旁白",
         content="说明",
     )
 
@@ -331,6 +333,8 @@ async def test_generate_slide_audio_propagates_processing_failures(
         async def concatenate_mp3_files(self, inputs: list[Path], output: Path) -> None:
             raise ExternalServiceError("ffmpeg failed")
 
+    d_config = get_template_config(DEFAULT_TEMPLATE_ID)
+
     with pytest.raises(ExternalServiceError, match="ffmpeg failed"):
         await GenerateSlideAudioUseCase(
             db_session,
@@ -338,8 +342,8 @@ async def test_generate_slide_audio_propagates_processing_failures(
             fake_audio_client,
             FailingAudioProcessingService(),
             fake_dialogue_client,
-            DefaultDialoguePromptStrategy(),
-            DefaultAudioCueStrategy(ROOT_DIR / "assets"),
+            DefaultDialoguePromptStrategy(d_config.cue_config),
+            DefaultAudioCueStrategy(ROOT_DIR / "assets" / d_config.assets_dir, d_config.cue_config),
             settings=test_settings,
         ).execute(project_id, slide_id)
 

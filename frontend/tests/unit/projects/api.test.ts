@@ -88,6 +88,7 @@ test('getProject maps ISO timestamps to numbers, preserves storage keys, and sor
           id: 'project-1',
           user_id: 'admin',
           name: 'Project 1',
+          template_id: 'xiyouji',
           messages: '[]',
           video_path: 'projects/project-1/video/final.mp4',
           created_at: '2026-03-26T10:00:00Z',
@@ -140,6 +141,7 @@ test('getProject maps ISO timestamps to numbers, preserves storage keys, and sor
     assert.deepEqual(result, {
       id: 'project-1',
       userId: 'admin',
+      templateId: 'xiyouji',
       title: 'Project 1',
       createdAt: Date.parse('2026-03-26T10:00:00Z'),
       updatedAt: Date.parse('2026-03-26T10:05:00Z'),

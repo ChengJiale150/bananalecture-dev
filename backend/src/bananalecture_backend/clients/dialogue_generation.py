@@ -11,13 +11,15 @@ from pydantic_ai.providers.openai import OpenAIProvider
 from bananalecture_backend.application.ports import GeneratedDialogueDraft
 from bananalecture_backend.core.errors import ConfigurationError, ExternalServiceError
 from bananalecture_backend.core.logging_config import get_global_logger
+from bananalecture_backend.core.templates import DoraemonRole, XiyoujiRole  # noqa: TC001  # pydantic 运行时需要
 from bananalecture_backend.schemas.common import APIModel
-from bananalecture_backend.schemas.dialogue import DialogueEmotion, DialogueRole, DialogueSpeed
+from bananalecture_backend.schemas.dialogue import DialogueEmotion, DialogueSpeed  # noqa: TC001  # pydantic 运行时需要
 
 if TYPE_CHECKING:
     from pydantic_ai.settings import ModelSettings
 
     from bananalecture_backend.core.config import Settings
+    from bananalecture_backend.core.templates import TemplateConfig
 
 global_logger = get_global_logger()
 
@@ -25,44 +27,51 @@ DIALOGUE_API_KEY_NOT_CONFIGURED = "DIALOGUE_GENERATION.PROVIDER.API_KEY is not c
 DIALOGUE_MODEL_NAME_EMPTY = "DIALOGUE_GENERATION.MODEL_NAME must not be empty"
 DIALOGUE_PROFILE_INVALID = "DIALOGUE_GENERATION.PROFILE is invalid"
 
-SYSTEM_PROMPT_TEMPLATE = """
-你是一个专业的口播稿生成助手。你需要根据将提供的信息转换为生动有趣的对话稿。
-生成的内容将直接输入语音合成(TTS)模型进行朗读, 请确保所有文本易于自然朗读
-
-要求:
-1. 角色仅可使用: {roles}
-2. 内容要简洁明了, 适合口头表达
-3. 语言要生动有趣, 吸引听众
-4. 为每个对话项设置合适的情感和语速
-
-注意事项:
-1. 图片中所有出现的公式与数学符号均转化为 Latex 格式, 并都用 $$ 包裹,
-如 $$E = m \\times c^2$$ 与 $$1-\\epsilon$$
-2. 道具为特殊 role, 当且仅当哆啦A梦首次掏出道具时, 添加角色为道具、内容为道具名称的对话,
-后续出现时无需重复添加, 封面页禁止生成道具角色
-""".strip()
-
 
 class GeneratedDialogueItem(APIModel):
     """Structured dialogue item returned by the LLM."""
 
-    role: DialogueRole = Field(description="说话的角色名称")
+    role: str = Field(description="说话的角色名称")
     content: str = Field(description="口播稿具体内容", min_length=1, max_length=5000)
     emotion: DialogueEmotion = Field(description="对话的情感")
     speed: DialogueSpeed = Field(description="对话的语速")
 
 
+class DoraemonDialogueItem(GeneratedDialogueItem):
+    """Dialogue item constrained to doraemon template roles."""
+
+    role: DoraemonRole = Field(description="说话的角色名称")
+
+
+class XiyoujiDialogueItem(GeneratedDialogueItem):
+    """Dialogue item constrained to xiyouji template roles."""
+
+    role: XiyoujiRole = Field(description="说话的角色名称")
+
+
+_ITEM_MODELS: dict[str, type[GeneratedDialogueItem]] = {
+    "doraemon": DoraemonDialogueItem,
+    "xiyouji": XiyoujiDialogueItem,
+}
+
+
+def _build_output_type(template_id: str) -> type[list[GeneratedDialogueItem]]:
+    """Return the constrained list output type for a template (fallback: unconstrained base)."""
+    item_model = _ITEM_MODELS.get(template_id, GeneratedDialogueItem)
+    return cast("type[list[GeneratedDialogueItem]]", list.__class_getitem__(item_model))
+
+
 class DialogueGenerationClient:
     """Pydantic AI client for slide dialogue generation."""
 
-    def __init__(self, settings: Settings) -> None:
-        """Initialize the client from immutable application settings."""
+    def __init__(self, settings: Settings, template_config: TemplateConfig) -> None:
+        """Initialize the client from application settings and template config."""
         self.settings = settings.DIALOGUE_GENERATION
         self.agent = Agent(
             model=self._build_model(),
-            output_type=list[GeneratedDialogueItem],
-            system_prompt=SYSTEM_PROMPT_TEMPLATE.format(
-                roles="、".join(role.value for role in DialogueRole),
+            output_type=_build_output_type(template_config.id),
+            system_prompt=template_config.system_prompt.format(
+                roles="、".join(template_config.roles),
             ),
             retries=self.settings.RETRIES,
         )
@@ -123,6 +132,6 @@ class DialogueGenerationClient:
         )
 
 
-def build_dialogue_generation_client(settings: Settings) -> DialogueGenerationClient:
-    """Build a dialogue generation client from application settings."""
-    return DialogueGenerationClient(settings)
+def build_dialogue_generation_client(settings: Settings, template_config: TemplateConfig) -> DialogueGenerationClient:
+    """Build a dialogue generation client from application settings and template config."""
+    return DialogueGenerationClient(settings, template_config)

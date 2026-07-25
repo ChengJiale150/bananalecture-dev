@@ -6,17 +6,6 @@ from pydantic import Field
 from bananalecture_backend.schemas.common import APIModel
 
 
-class DialogueRole(StrEnum):
-    """Supported dialogue roles."""
-
-    NOBITA = "大雄"
-    DORAEMON = "哆啦A梦"
-    NARRATOR = "旁白"
-    OTHER_MALE = "其他男声"
-    OTHER_FEMALE = "其他女声"
-    PROP = "道具"
-
-
 class DialogueEmotion(StrEnum):
     """Supported dialogue emotions."""
 
@@ -39,7 +28,7 @@ class DialogueSpeed(StrEnum):
 class DialogueBase(APIModel):
     """Editable dialogue fields."""
 
-    role: DialogueRole = DialogueRole.NARRATOR
+    role: str = "旁白"
     content: str = Field(default="", max_length=5000)
     emotion: DialogueEmotion = DialogueEmotion.NEUTRAL
     speed: DialogueSpeed = DialogueSpeed.MEDIUM
@@ -64,7 +53,7 @@ class Dialogue(APIModel):
 
     id: str
     slide_id: str
-    role: DialogueRole
+    role: str
     content: str
     emotion: DialogueEmotion
     speed: DialogueSpeed

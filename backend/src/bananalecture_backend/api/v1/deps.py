@@ -11,10 +11,13 @@ from bananalecture_backend.application.ports import (
     AssetStore,
     AudioProcessor,
     AudioSynthesizer,
+    AudioTemplateClients,
     BackgroundTaskRunner,
     DialogueGenerator,
+    DialogueTemplateClients,
     ImageGenerator,
     ImagePreprocessor,
+    TemplateClientResolver,
     VideoRenderer,
 )
 from bananalecture_backend.application.strategies import (
@@ -46,6 +49,9 @@ from bananalecture_backend.clients.audio_generation import build_audio_generatio
 from bananalecture_backend.clients.dialogue_generation import build_dialogue_generation_client
 from bananalecture_backend.clients.image_generation import build_image_generation_client
 from bananalecture_backend.core.config import ROOT_DIR, Settings
+from bananalecture_backend.core.errors import ConfigurationError
+from bananalecture_backend.core.templates import DEFAULT_TEMPLATE_ID, TemplateConfig, get_template_config
+from bananalecture_backend.db.repositories import ProjectRepository
 from bananalecture_backend.infrastructure.audio_processing import build_audio_processing_service
 from bananalecture_backend.infrastructure.image_processing import build_image_processing_service
 from bananalecture_backend.infrastructure.log_reader import LogReader
@@ -169,13 +175,21 @@ def get_image_generator(settings: SettingsDep) -> ImageGenerator:
 
 
 def get_dialogue_generator(settings: SettingsDep) -> DialogueGenerator:
-    """Build the dialogue generator port."""
-    return build_dialogue_generation_client(settings)
+    """Build the dialogue generator port (uses default doraemon template)."""
+    config = get_template_config(DEFAULT_TEMPLATE_ID)
+    if config is None:
+        msg = f"Default template {DEFAULT_TEMPLATE_ID!r} not found"
+        raise ConfigurationError(msg)
+    return build_dialogue_generation_client(settings, config)
 
 
 def get_audio_synthesizer(settings: SettingsDep) -> AudioSynthesizer:
-    """Build the audio synthesizer port."""
-    return build_audio_generation_client(settings)
+    """Build the audio synthesizer port (uses default doraemon template)."""
+    config = get_template_config(DEFAULT_TEMPLATE_ID)
+    if config is None:
+        msg = f"Default template {DEFAULT_TEMPLATE_ID!r} not found"
+        raise ConfigurationError(msg)
+    return build_audio_generation_client(settings, config.voice_groups)
 
 
 def get_audio_processor(settings: SettingsDep) -> AudioProcessor:
@@ -194,13 +208,21 @@ def get_image_preprocessor() -> ImagePreprocessor:
 
 
 def get_dialogue_prompt_strategy() -> DialoguePromptStrategy:
-    """Build the dialogue prompt strategy."""
-    return DefaultDialoguePromptStrategy()
+    """Build the default dialogue prompt strategy (doraemon)."""
+    config = get_template_config(DEFAULT_TEMPLATE_ID)
+    if config is None:
+        msg = f"Default template {DEFAULT_TEMPLATE_ID!r} not found"
+        raise ConfigurationError(msg)
+    return DefaultDialoguePromptStrategy(config.cue_config)
 
 
 def get_audio_cue_strategy() -> AudioCueStrategy:
-    """Build the audio cue strategy."""
-    return DefaultAudioCueStrategy(ROOT_DIR / "assets")
+    """Build the default audio cue strategy (doraemon)."""
+    config = get_template_config(DEFAULT_TEMPLATE_ID)
+    if config is None:
+        msg = f"Default template {DEFAULT_TEMPLATE_ID!r} not found"
+        raise ConfigurationError(msg)
+    return DefaultAudioCueStrategy(ROOT_DIR / "assets" / config.assets_dir, config.cue_config)
 
 
 AssetStoreDep = Annotated[AssetStore, Depends(get_asset_store)]
@@ -212,6 +234,84 @@ VideoRendererDep = Annotated[VideoRenderer, Depends(get_video_renderer)]
 ImagePreprocessorDep = Annotated[ImagePreprocessor, Depends(get_image_preprocessor)]
 DialoguePromptStrategyDep = Annotated[DialoguePromptStrategy, Depends(get_dialogue_prompt_strategy)]
 AudioCueStrategyDep = Annotated[AudioCueStrategy, Depends(get_audio_cue_strategy)]
+
+
+class SettingsTemplateClientResolver:
+    """Resolve template-specific clients, reusing defaults for the default template."""
+
+    def __init__(
+        self,
+        settings: Settings,
+        default_dialogue_generator: DialogueGenerator,
+        default_prompt_strategy: DialoguePromptStrategy,
+        default_audio_synthesizer: AudioSynthesizer,
+        default_audio_cue_strategy: AudioCueStrategy,
+    ) -> None:
+        """Store settings and default-template clients for reuse."""
+        self.settings = settings
+        self.default_dialogue_generator = default_dialogue_generator
+        self.default_prompt_strategy = default_prompt_strategy
+        self.default_audio_synthesizer = default_audio_synthesizer
+        self.default_audio_cue_strategy = default_audio_cue_strategy
+
+    def resolve_dialogue_clients(self, template: TemplateConfig | None) -> DialogueTemplateClients:
+        """Resolve dialogue generator and prompt strategy for a template."""
+        if template is None or template.id == DEFAULT_TEMPLATE_ID:
+            return DialogueTemplateClients(
+                dialogue_generator=self.default_dialogue_generator,
+                prompt_strategy=self.default_prompt_strategy,
+            )
+        return DialogueTemplateClients(
+            dialogue_generator=build_dialogue_generation_client(self.settings, template),
+            prompt_strategy=DefaultDialoguePromptStrategy(template.cue_config),
+        )
+
+    def resolve_audio_clients(self, template: TemplateConfig | None) -> AudioTemplateClients:
+        """Resolve audio clients and strategies for a template."""
+        if template is None or template.id == DEFAULT_TEMPLATE_ID:
+            return AudioTemplateClients(
+                audio_synthesizer=self.default_audio_synthesizer,
+                dialogue_generator=self.default_dialogue_generator,
+                dialogue_prompt_strategy=self.default_prompt_strategy,
+                audio_cue_strategy=self.default_audio_cue_strategy,
+            )
+        return AudioTemplateClients(
+            audio_synthesizer=build_audio_generation_client(self.settings, template.voice_groups),
+            dialogue_generator=build_dialogue_generation_client(self.settings, template),
+            dialogue_prompt_strategy=DefaultDialoguePromptStrategy(template.cue_config),
+            audio_cue_strategy=DefaultAudioCueStrategy(
+                ROOT_DIR / "assets" / template.assets_dir,
+                template.cue_config,
+            ),
+        )
+
+
+def get_template_client_resolver(
+    settings: SettingsDep,
+    dialogue_generator: DialogueGeneratorDep,
+    prompt_strategy: DialoguePromptStrategyDep,
+    audio_synthesizer: AudioSynthesizerDep,
+    audio_cue_strategy: AudioCueStrategyDep,
+) -> TemplateClientResolver:
+    """Build the template client resolver port."""
+    return SettingsTemplateClientResolver(
+        settings,
+        dialogue_generator,
+        prompt_strategy,
+        audio_synthesizer,
+        audio_cue_strategy,
+    )
+
+
+TemplateClientResolverDep = Annotated[TemplateClientResolver, Depends(get_template_client_resolver)]
+
+
+async def _get_project_template(session: AsyncSession, project_id: str) -> TemplateConfig | None:
+    """Read the project's template configuration (None when the project is missing)."""
+    project = await ProjectRepository(session).get(project_id)
+    if project is None:
+        return None
+    return get_template_config(project.template_id or DEFAULT_TEMPLATE_ID)
 
 
 def get_project_resource_service(session: DBSessionDep) -> ProjectResourceService:
@@ -236,13 +336,15 @@ DialogueResourceServiceDep = Annotated[DialogueResourceService, Depends(get_dial
 TaskRecordServiceDep = Annotated[TaskRecordService, Depends(get_task_record_service)]
 
 
-def get_generate_slide_image_use_case(
+async def get_generate_slide_image_use_case(
+    project_id: str,
     session: DBSessionDep,
     image_generator: ImageGeneratorDep,
     asset_store: AssetStoreDep,
     settings: SettingsDep,
 ) -> GenerateSlideImageUseCase:
-    return GenerateSlideImageUseCase(session, image_generator, asset_store, settings)
+    template = await _get_project_template(session, project_id)
+    return GenerateSlideImageUseCase(session, image_generator, asset_store, settings, template)
 
 
 def get_modify_slide_image_use_case(
@@ -262,34 +364,42 @@ def get_slide_image_file_use_case(
     return GetSlideImageFileUseCase(service, asset_store, settings)
 
 
-def get_generate_slide_dialogues_use_case(
+async def get_generate_slide_dialogues_use_case(
+    project_id: str,
     session: DBSessionDep,
-    dialogue_generator: DialogueGeneratorDep,
-    prompt_strategy: DialoguePromptStrategyDep,
+    template_client_resolver: TemplateClientResolverDep,
     asset_store: AssetStoreDep,
     settings: SettingsDep,
 ) -> GenerateSlideDialoguesUseCase:
-    return GenerateSlideDialoguesUseCase(session, dialogue_generator, prompt_strategy, asset_store, settings)
+    template = await _get_project_template(session, project_id)
+    clients = template_client_resolver.resolve_dialogue_clients(template)
+    return GenerateSlideDialoguesUseCase(
+        session,
+        clients.dialogue_generator,
+        clients.prompt_strategy,
+        asset_store,
+        settings,
+    )
 
 
-def get_generate_slide_audio_use_case(
+async def get_generate_slide_audio_use_case(
+    project_id: str,
     session: DBSessionDep,
     asset_store: AssetStoreDep,
-    audio_synthesizer: AudioSynthesizerDep,
     audio_processor: AudioProcessorDep,
-    dialogue_generator: DialogueGeneratorDep,
-    prompt_strategy: DialoguePromptStrategyDep,
-    audio_cue_strategy: AudioCueStrategyDep,
+    template_client_resolver: TemplateClientResolverDep,
     settings: SettingsDep,
 ) -> GenerateSlideAudioUseCase:
+    template = await _get_project_template(session, project_id)
+    clients = template_client_resolver.resolve_audio_clients(template)
     return GenerateSlideAudioUseCase(
         session,
         asset_store,
-        audio_synthesizer,
+        clients.audio_synthesizer,
         audio_processor,
-        dialogue_generator,
-        prompt_strategy,
-        audio_cue_strategy,
+        clients.dialogue_generator,
+        clients.dialogue_prompt_strategy,
+        clients.audio_cue_strategy,
         settings,
     )
 
@@ -321,17 +431,15 @@ def get_queue_batch_image_generation_use_case(
 
 def get_queue_batch_dialogue_generation_use_case(
     context: AppContextDep,
-    dialogue_generator: DialogueGeneratorDep,
-    prompt_strategy: DialoguePromptStrategyDep,
     asset_store: AssetStoreDep,
+    template_client_resolver: TemplateClientResolverDep,
 ) -> QueueBatchDialogueGenerationUseCase:
     return QueueBatchDialogueGenerationUseCase(
         context.session,
         context.runtime,
         context.session_factory,
-        dialogue_generator,
-        prompt_strategy,
         asset_store,
+        template_client_resolver,
         context.settings,
     )
 
@@ -339,22 +447,16 @@ def get_queue_batch_dialogue_generation_use_case(
 def get_queue_batch_audio_generation_use_case(
     context: AppContextDep,
     asset_store: AssetStoreDep,
-    audio_synthesizer: AudioSynthesizerDep,
     audio_processor: AudioProcessorDep,
-    dialogue_generator: DialogueGeneratorDep,
-    prompt_strategy: DialoguePromptStrategyDep,
-    audio_cue_strategy: AudioCueStrategyDep,
+    template_client_resolver: TemplateClientResolverDep,
 ) -> QueueBatchAudioGenerationUseCase:
     return QueueBatchAudioGenerationUseCase(
         context.session,
         context.runtime,
         context.session_factory,
         asset_store,
-        audio_synthesizer,
         audio_processor,
-        dialogue_generator,
-        prompt_strategy,
-        audio_cue_strategy,
+        template_client_resolver,
         context.settings,
     )
 
@@ -395,28 +497,22 @@ def get_pause_task_use_case(
 def get_resume_task_use_case(
     context: AppContextDep,
     image_generator: ImageGeneratorDep,
-    dialogue_generator: DialogueGeneratorDep,
-    prompt_strategy: DialoguePromptStrategyDep,
-    audio_synthesizer: AudioSynthesizerDep,
     audio_processor: AudioProcessorDep,
-    audio_cue_strategy: AudioCueStrategyDep,
     image_preprocessor: ImagePreprocessorDep,
     video_renderer: VideoRendererDep,
     asset_store: AssetStoreDep,
+    template_client_resolver: TemplateClientResolverDep,
 ) -> ResumeTaskUseCase:
     return ResumeTaskUseCase(
         context.session,
         context.runtime,
         context.session_factory,
         image_generator,
-        dialogue_generator,
-        prompt_strategy,
-        audio_synthesizer,
         audio_processor,
-        audio_cue_strategy,
         image_preprocessor,
         video_renderer,
         asset_store,
+        template_client_resolver,
         context.settings,
     )
 
@@ -471,28 +567,22 @@ def get_run_pipeline_use_case(
     runtime: RuntimeDep,
     session_factory: SessionFactoryDep,
     image_generator: ImageGeneratorDep,
-    dialogue_generator: DialogueGeneratorDep,
-    prompt_strategy: DialoguePromptStrategyDep,
-    audio_synthesizer: AudioSynthesizerDep,
     audio_processor: AudioProcessorDep,
-    audio_cue_strategy: AudioCueStrategyDep,
     image_preprocessor: ImagePreprocessorDep,
     video_renderer: VideoRendererDep,
     asset_store: AssetStoreDep,
+    template_client_resolver: TemplateClientResolverDep,
     settings: SettingsDep,
 ) -> RunPipelineUseCase:
     return RunPipelineUseCase(
         runtime,
         session_factory,
         image_generator,
-        dialogue_generator,
-        prompt_strategy,
-        audio_synthesizer,
         audio_processor,
-        audio_cue_strategy,
         image_preprocessor,
         video_renderer,
         asset_store,
+        template_client_resolver,
         settings,
     )
 
@@ -508,28 +598,22 @@ def get_pause_pipeline_use_case(
 def get_resume_pipeline_use_case(
     context: AppContextDep,
     image_generator: ImageGeneratorDep,
-    dialogue_generator: DialogueGeneratorDep,
-    prompt_strategy: DialoguePromptStrategyDep,
-    audio_synthesizer: AudioSynthesizerDep,
     audio_processor: AudioProcessorDep,
-    audio_cue_strategy: AudioCueStrategyDep,
     image_preprocessor: ImagePreprocessorDep,
     video_renderer: VideoRendererDep,
     asset_store: AssetStoreDep,
+    template_client_resolver: TemplateClientResolverDep,
 ) -> ResumePipelineUseCase:
     return ResumePipelineUseCase(
         context.session,
         context.runtime,
         context.session_factory,
         image_generator,
-        dialogue_generator,
-        prompt_strategy,
-        audio_synthesizer,
         audio_processor,
-        audio_cue_strategy,
         image_preprocessor,
         video_renderer,
         asset_store,
+        template_client_resolver,
         context.settings,
     )
 

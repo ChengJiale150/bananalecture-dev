@@ -18,7 +18,6 @@ global_logger = get_global_logger()
 AUDIO_API_GROUP_ID_NOT_CONFIGURED = "AUDIO_GENERATION.PROVIDER.GROUP_ID is not configured"
 AUDIO_API_KEY_NOT_CONFIGURED = "AUDIO_GENERATION.PROVIDER.API_KEY is not configured"
 AUDIO_MODEL_NOT_CONFIGURED = "AUDIO_GENERATION.PROVIDER.MODEL is not configured"
-AUDIO_DEFAULT_GROUP_INVALID = "AUDIO_GENERATION.DEFAULT_VOICE_GROUP is not configured in VOICE_GROUPS"
 AUDIO_RESPONSE_MISSING_BASE = "Audio generation response is missing base_resp"
 AUDIO_RESPONSE_INVALID_STATUS = "Audio generation response returned non-zero status"
 AUDIO_RESPONSE_MISSING_DATA = "Audio generation response is missing data"
@@ -52,10 +51,11 @@ class AudioGenerationClient:
         "快速": 1.25,
     }
 
-    def __init__(self, settings: Settings) -> None:
-        """Store immutable audio service settings."""
+    def __init__(self, settings: Settings, voice_groups: dict[str, str]) -> None:
+        """Store immutable audio service settings and template voice groups."""
         self.settings = settings.AUDIO_GENERATION
         self.provider = self.settings.PROVIDER
+        self.voice_groups = voice_groups
         self._validate_provider_configuration()
         self.url = f"https://api.minimax.chat/v1/t2a_v2?GroupId={self.provider.GROUP_ID}"
 
@@ -83,8 +83,7 @@ class AudioGenerationClient:
             raise ConfigurationError(AUDIO_MODEL_NOT_CONFIGURED)
 
     def _build_payload(self, text: str, role: str, emotion: str, speed: str) -> dict[str, Any]:
-        voice_group = self._resolve_voice_group()
-        voice_id = voice_group.get(role, voice_group.get("其他"))
+        voice_id = self.voice_groups.get(role, self.voice_groups.get("其他"))
         if voice_id is None:
             message = VOICE_MISSING_TEMPLATE.format(role=role)
             raise ConfigurationError(message)
@@ -116,12 +115,6 @@ class AudioGenerationClient:
             payload["voice_setting"]["emotion"] = mapped_emotion
 
         return payload
-
-    def _resolve_voice_group(self) -> dict[str, str]:
-        voice_group = self.settings.VOICE_GROUPS.get(self.settings.DEFAULT_VOICE_GROUP)
-        if voice_group is None:
-            raise ConfigurationError(AUDIO_DEFAULT_GROUP_INVALID)
-        return voice_group
 
     async def _request_audio(self, payload: dict[str, Any]) -> bytes:
         last_error: ExternalServiceError | None = None
@@ -207,6 +200,6 @@ class AudioGenerationClient:
         await asyncio.sleep(delay + _RANDOM.uniform(0, 0.1 * delay))
 
 
-def build_audio_generation_client(settings: Settings) -> AudioGenerationClient:
-    """Build an audio generation client from application settings."""
-    return AudioGenerationClient(settings)
+def build_audio_generation_client(settings: Settings, voice_groups: dict[str, str]) -> AudioGenerationClient:
+    """Build an audio generation client from application settings and template voice groups."""
+    return AudioGenerationClient(settings, voice_groups)

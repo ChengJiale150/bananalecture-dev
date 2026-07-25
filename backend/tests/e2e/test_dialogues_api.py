@@ -241,18 +241,6 @@ def test_dialogues_api_returns_errors_for_missing_resources_and_bad_requests(
         "data": None,
     }
 
-    invalid_add_response = client.post(
-        f"{test_settings.API.V1_STR}/projects/{project_id}/slides/{slide_id}/dialogues/add",
-        json={
-            "role": "invalid",
-            "content": "Bad role",
-            "emotion": "无明显情感",
-            "speed": "中速",
-        },
-    )
-    assert invalid_add_response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
-    assert invalid_add_response.json()["message"] == "Validation error"
-
     invalid_update_response = client.put(
         f"{test_settings.API.V1_STR}/projects/{project_id}/slides/{slide_id}/dialogues/{existing_dialogue['id']}",
         json={
@@ -271,3 +259,24 @@ def test_dialogues_api_returns_errors_for_missing_resources_and_bad_requests(
     )
     assert invalid_reorder_response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
     assert invalid_reorder_response.json()["message"] == "Validation error"
+
+
+@pytest.mark.e2e
+def test_dialogues_api_accepts_arbitrary_roles(client: TestClient, test_settings: Settings) -> None:
+    project_id = _create_project(client, test_settings)
+    slide_id = _create_slide(client, test_settings, project_id)
+
+    added = _add_dialogue(client, test_settings, project_id, slide_id, role="孙悟空", content="俺老孙来也")
+    assert added["role"] == "孙悟空"
+
+    update_response = client.put(
+        f"{test_settings.API.V1_STR}/projects/{project_id}/slides/{slide_id}/dialogues/{added['id']}",
+        json={
+            "role": "任意新角色",
+            "content": "更新后的台词",
+            "emotion": "开心的",
+            "speed": "快速",
+        },
+    )
+    assert update_response.status_code == status.HTTP_200_OK
+    assert update_response.json()["data"]["role"] == "任意新角色"

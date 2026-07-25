@@ -13,6 +13,7 @@ import {
 import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { DEFAULT_TEMPLATE_ID, getTemplateName } from '@/shared/template-config';
 
 interface ToolInvocation {
   toolCallId: string;
@@ -36,8 +37,9 @@ interface ToolInvocation {
   };
 }
 
-export default function ToolView({ invocation }: { invocation: ToolInvocation }) {
+export default function ToolView({ invocation, templateId }: { invocation: ToolInvocation; templateId?: string }) {
   const { toolName, args, state } = invocation;
+  const templateName = getTemplateName(templateId ?? DEFAULT_TEMPLATE_ID);
   const isComplete =
     state === 'result' ||
     state === 'output-available' ||
@@ -60,7 +62,7 @@ export default function ToolView({ invocation }: { invocation: ToolInvocation })
         <div className="p-4 bg-white border-2 border-[var(--banana-blue)] rounded-xl shadow-[4px_4px_0px_var(--banana-blue)]">
           <div className="flex items-center gap-2 text-[var(--banana-blue)] font-bold">
             <Loader2 size={20} className="animate-spin" />
-            <span>正在生成哆啦A梦教学漫画 PPT 规划...</span>
+            <span>正在生成{templateName}教学漫画 PPT 规划...</span>
           </div>
         </div>
       </div>
@@ -159,7 +161,7 @@ export default function ToolView({ invocation }: { invocation: ToolInvocation })
               ) : (
                 <Sparkles size={24} />
               )}
-              <span className="text-lg">哆啦A梦教学漫画 PPT 规划</span>
+              <span className="text-lg">{templateName}教学漫画 PPT 规划</span>
               {isStreaming && (
                 <span className="text-sm text-gray-500 font-normal">
                   (生成中... {slides.length} 页)

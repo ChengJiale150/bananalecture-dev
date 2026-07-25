@@ -12,7 +12,7 @@ from bananalecture_backend.application.ports import GeneratedDialogueDraft
 from bananalecture_backend.core.config import DatabaseSettings, ROOT_DIR, Settings, StorageSettings
 from bananalecture_backend.db.session import DatabaseManager
 from bananalecture_backend.main import create_app
-from bananalecture_backend.schemas.dialogue import DialogueEmotion, DialogueRole, DialogueSpeed
+from bananalecture_backend.schemas.dialogue import DialogueEmotion, DialogueSpeed
 
 TEST_PNG_BYTES = b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Z0xQAAAAASUVORK5CYII="
@@ -23,10 +23,10 @@ class FakeImageGenerationClient:
     """In-memory image generator used by tests."""
 
     def __init__(self) -> None:
-        self.calls: list[dict[str, str | None]] = []
+        self.calls: list[dict[str, object]] = []
 
-    async def generate_image(self, prompt: str, reference_image: str | None = None) -> bytes:
-        self.calls.append({"prompt": prompt, "reference_image": reference_image})
+    async def generate_image(self, prompt: str, reference_images: list[str] | None = None) -> bytes:
+        self.calls.append({"prompt": prompt, "reference_images": reference_images})
         return TEST_PNG_BYTES
 
 
@@ -50,13 +50,13 @@ class FakeDialogueGenerationClient:
         )
         return [
             GeneratedDialogueDraft(
-                role=DialogueRole.NOBITA,
+                role="大雄",
                 content="这一页先让我来开场。",
                 emotion=DialogueEmotion.HAPPY,
                 speed=DialogueSpeed.MEDIUM,
             ),
             GeneratedDialogueDraft(
-                role=DialogueRole.DORAEMON,
+                role="哆啦A梦",
                 content="接着我来解释这一页的重点。",
                 emotion=DialogueEmotion.NEUTRAL,
                 speed=DialogueSpeed.MEDIUM,
