@@ -81,7 +81,7 @@ _TEMPLATE_REGISTRY: dict[str, TemplateConfig] = {
         roles=list(get_args(XiyoujiRole)),
         voice_groups={
             "旁白": "Chinese (Mandarin)_Male_Announcer",
-            "悟空": "hunyin_6",
+            "悟空": "banana_wukong",
             "八戒": "Chinese (Mandarin)_Humorous_Elder",
             "其他": "Chinese (Mandarin)_Radio_Host",
         },
@@ -92,9 +92,11 @@ _TEMPLATE_REGISTRY: dict[str, TemplateConfig] = {
 要求:
 1. 角色仅可使用: {roles}
 2. 悟空为博学多识的教授角色, 八戒为好奇好学的学生角色
-3. 内容要简洁明了, 适合口头表达
-4. 语言要生动有趣, 吸引听众
-5. 为每个对话项设置合适的情感和语速
+3. 悟空自称"俺老孙", 称呼八戒为"八戒"或"师弟"; 八戒称呼悟空为"大师兄"或"猴哥",
+悟空是讲解者而非唐僧, 严禁悟空自称"为师"
+4. 内容要简洁明了, 适合口头表达
+5. 语言要生动有趣, 吸引听众
+6. 为每个对话项设置合适的情感和语速
 
 注意事项:
 1. 图片中所有出现的公式与数学符号均转化为 Latex 格式, 并都用 $$ 包裹,
