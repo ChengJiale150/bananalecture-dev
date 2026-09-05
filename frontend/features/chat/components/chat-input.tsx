@@ -25,7 +25,7 @@ export default function ChatInput({
   const [text, setText] = useState('');
   const [pageCount, setPageCount] = useState('5-10');
   const [audience, setAudience] = useState('beginner');
-  const [style, setStyle] = useState('colorful_comic');
+  const [style, setStyle] = useState('multi_panel');
   const [template, setTemplate] = useState<TemplateId>(initialTemplate);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
