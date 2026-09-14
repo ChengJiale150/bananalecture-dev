@@ -83,13 +83,20 @@ function ChatInterface({
   const { basePath } = useBasePath();
   const router = useRouter();
   const chatId = project.id;
-  const { status, sendMessage, messages, stop, setMessages, error } =
-    useChat<PlannerAgentUIMessage>({
-      id: chatId,
-      onError: requestError => {
-        console.error('[planner-chat] request failed', requestError);
-      },
-    });
+  const { status, sendMessage, messages, stop, error } = useChat<PlannerAgentUIMessage>({
+    id: chatId,
+    // Seeding the store here (instead of pushing it from an effect) keeps React out of a
+    // "setState during useEffect" loop: writing `messages` inside an effect notifies
+    // useSyncExternalStore *while React is flushing passive effects*, which is one of the
+    // paths that ends in "Maximum update depth exceeded". The component is remounted per
+    // project (key={project.id}), so this is always the right starting point.
+    messages: (project.messages ?? []) as PlannerAgentUIMessage[],
+    // Coalesce store notifications when the provider streams token by token.
+    experimental_throttle: 50,
+    onError: requestError => {
+      console.error('[planner-chat] request failed', requestError);
+    },
+  });
 
   const [persistedPptPlan, setPersistedPptPlan] = useState(project.pptPlan);
   const [draftPptPlan, setDraftPptPlan] = useState<{ slides: Slide[] } | undefined>();
@@ -191,24 +198,12 @@ function ChatInterface({
   );
 
   useEffect(() => {
-    const projectMessages = (project.messages ?? []) as PlannerAgentUIMessage[];
-
-    setMessages(projectMessages);
-    latestMessagesRef.current = projectMessages;
-    lastSyncedSignatureRef.current = stringifyProjectMessages(projectMessages);
-    setPersistedPptPlan(project.pptPlan);
-    setDraftPptPlan(undefined);
-    markPlanSynced(project.pptPlan?.slides);
-    setIsCompletingEdit(false);
-    projectTitleRef.current = project.title;
-
     return () => {
       if (syncTimerRef.current) {
         window.clearTimeout(syncTimerRef.current);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project.id]);
+  }, []);
 
   useEffect(() => {
     if (project.id !== chatId) {

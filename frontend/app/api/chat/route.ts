@@ -1,4 +1,5 @@
 import { createPlannerAgent } from '@/server/planner/create-planner-agent';
+import { coalesceStreamDeltas } from '@/server/planner/coalesce-stream-parts';
 import { DEFAULT_TEMPLATE_ID, TEMPLATE_REGISTRY, type TemplateId } from '@/shared/template-config';
 import { createAgentUIStreamResponse } from 'ai';
 
@@ -32,5 +33,7 @@ export async function POST(request: Request) {
       templateId: template,
     }),
     uiMessages: messages,
+    // Keep the client's `useChat` store from being notified once per streamed token.
+    experimental_transform: coalesceStreamDeltas(),
   });
 }

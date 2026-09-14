@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import dynamic from 'next/dynamic';
 import type { Slide } from '@/features/projects/types';
 
@@ -17,7 +18,7 @@ interface PPTPlanPreviewProps {
   isPlanPendingSync?: boolean;
 }
 
-export default function PPTPlanPreview({
+function PPTPlanPreview({
   pptPlan,
   onUpdateSlide,
   onAddSlide,
@@ -61,3 +62,9 @@ export default function PPTPlanPreview({
     </div>
   );
 }
+
+/**
+ * Memoized because the chat panel re-renders on every streamed chunk, while the plan only
+ * changes when the planner actually produces new slides.
+ */
+export default memo(PPTPlanPreview);
