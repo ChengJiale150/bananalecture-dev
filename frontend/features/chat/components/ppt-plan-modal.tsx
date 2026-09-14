@@ -13,6 +13,7 @@ import {
   Plus,
   ChevronUp,
   ChevronDown,
+  Loader2,
 } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -30,6 +31,14 @@ interface PPTPlanModalProps {
   onSaveAndPreview?: () => void | Promise<void>;
   onClose: () => void;
   embedded?: boolean;
+  /** The plan is persisted to the backend and can be opened in the preview page. */
+  canCompleteEdit?: boolean;
+  /** A completion request is in flight. */
+  isCompletingEdit?: boolean;
+  /** A chat request is in flight, so the plan may still change. */
+  isChatActive?: boolean;
+  /** The plan is ahead of the backend and waiting for the sync request to settle. */
+  isPlanPendingSync?: boolean;
 }
 
 function createNewSlideDraft(): Slide {
@@ -51,6 +60,10 @@ export default function PPTPlanModal({
   onSaveAndPreview,
   onClose,
   embedded = false,
+  canCompleteEdit = true,
+  isCompletingEdit = false,
+  isChatActive = false,
+  isPlanPendingSync = false,
 }: PPTPlanModalProps) {
   const [slides, setSlides] = useState<Slide[]>(pptPlan.slides);
   const [editingSlideIndex, setEditingSlideIndex] = useState<number | null>(null);
@@ -223,12 +236,16 @@ export default function PPTPlanModal({
   };
 
   const handleCompleteEdit = useCallback(async () => {
+    if (isCompletingEdit) {
+      return;
+    }
+
     if (onSaveAndPreview) {
       await onSaveAndPreview();
       return;
     }
     onClose();
-  }, [onClose, onSaveAndPreview]);
+  }, [isCompletingEdit, onClose, onSaveAndPreview]);
 
   return (
     <div className={embedded ? 'h-full' : 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm'}>
@@ -410,10 +427,29 @@ export default function PPTPlanModal({
         <div className={`p-4 bg-white ${embedded ? '' : 'border-t-4 border-gray-900'}`}>
           <button
             onClick={() => void handleCompleteEdit()}
-            className="w-full p-3 bg-green-500 text-white font-bold rounded-xl border-2 border-gray-900 hover:brightness-110 active:scale-95 transition-all shadow-[3px_3px_0px_rgba(0,0,0,1)]"
+            disabled={!canCompleteEdit || isCompletingEdit || isMutating}
+            className="w-full flex items-center justify-center gap-2 p-3 bg-green-500 text-white font-bold rounded-xl border-2 border-gray-900 hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100 disabled:active:scale-100 transition-all shadow-[3px_3px_0px_rgba(0,0,0,1)]"
           >
-            {onSaveAndPreview ? '完成编辑并查看 PPT 预览' : '完成编辑'}
+            {isCompletingEdit && <Loader2 size={18} className="animate-spin" />}
+            {isCompletingEdit
+              ? '正在打开 PPT 预览...'
+              : !canCompleteEdit
+                ? isChatActive
+                  ? '正在对话中，请稍候...'
+                  : '规划同步中，请稍候...'
+                : onSaveAndPreview
+                  ? '完成编辑并查看 PPT 预览'
+                  : '完成编辑'}
           </button>
+          {!canCompleteEdit && (
+            <p className="mt-2 text-center text-xs font-bold text-gray-400">
+              {isChatActive
+                ? '规划可能还会变化，对话结束后即可进入预览'
+                : isPlanPendingSync
+                  ? '正在将规划保存到服务器，完成后方可进入预览'
+                  : '规划将在生成完成并保存到服务器后开放预览'}
+            </p>
+          )}
         </div>
       </div>
     </div>

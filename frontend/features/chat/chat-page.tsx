@@ -14,8 +14,10 @@ import Sidebar from '@/features/chat/components/sidebar';
 import {
   createPptPlan,
   extractLatestPptPlanState,
+  getPlanPersistState,
   getPptPlanSignature,
   shouldSyncCompletedPptPlan,
+  type PlanPersistState,
 } from '@/features/chat/ppt-plan-state';
 import { ThinkingBlock } from '@/features/chat/components/thinking-block';
 import ToolView from '@/features/chat/components/tool-view';
@@ -86,6 +88,8 @@ function ChatInterface({
 
   const [persistedPptPlan, setPersistedPptPlan] = useState(project.pptPlan);
   const [draftPptPlan, setDraftPptPlan] = useState<{ slides: Slide[] } | undefined>();
+  const [planPersistState, setPlanPersistState] = useState<PlanPersistState>('idle');
+  const [isCompletingEdit, setIsCompletingEdit] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<'editor' | 'chat'>(
     project.messages && project.messages.length > 0 ? 'editor' : 'chat'
   );
@@ -173,6 +177,8 @@ function ChatInterface({
     lastSyncedSignatureRef.current = stringifyProjectMessages(projectMessages);
     setPersistedPptPlan(project.pptPlan);
     setDraftPptPlan(undefined);
+    setPlanPersistState(project.pptPlan?.slides.length ? 'synced' : 'idle');
+    setIsCompletingEdit(false);
     lastSyncedPlanSignatureRef.current = getPptPlanSignature(project.pptPlan?.slides);
     projectTitleRef.current = project.title;
 
@@ -216,6 +222,13 @@ function ChatInterface({
     const immediate = status !== 'streaming' && status !== 'submitted';
     schedulePersist(immediate);
   }, [messages, schedulePersist, status]);
+
+  useEffect(() => {
+    setPlanPersistState(current => {
+      const next = getPlanPersistState(effectivePptPlan, lastSyncedPlanSignatureRef.current);
+      return current === next ? current : next;
+    });
+  }, [effectivePptPlan]);
 
   const commitPptPlan = useCallback(
     (nextSlides: Slide[]) => {
@@ -271,10 +284,26 @@ function ChatInterface({
     [chatId, commitPptPlan, effectivePptPlan?.slides]
   );
 
+  /** A chat request is in flight (with or without a `create_ppt_plan` tool call). */
+  const isChatActive = status === 'submitted' || status === 'streaming';
+  /**
+   * The plan shown in the editor differs from the version persisted in the backend.
+   * `synced` is only produced after the backend accepted the slides, so this is false
+   * during a pure conversation where no tool call changes the plan.
+   */
+  const isPlanPendingSync = planPersistState === 'pending';
+
   const handleOpenPreviewFromEditor = useCallback(() => {
+    if (isChatActive || isPlanPendingSync || isCompletingEdit) {
+      return;
+    }
+
+    setIsCompletingEdit(true);
     markPreviewRefresh(chatId);
     router.push(`${basePath}/preview?id=${chatId}&page=1`);
-  }, [basePath, chatId, router]);
+  }, [basePath, chatId, isChatActive, isCompletingEdit, isPlanPendingSync, router]);
+
+  const canEnterPreview = !isChatActive && !isPlanPendingSync;
 
   const handleSendMessage = useCallback(
     (text: string, options?: ChatOptions) => {
@@ -311,6 +340,7 @@ function ChatInterface({
         }
 
         commitPptPlan(persistedSlides);
+        setPlanPersistState('synced');
       } catch (error) {
         console.error('Failed to persist completed PPT plan:', error);
       }
@@ -331,6 +361,10 @@ function ChatInterface({
       onDeleteSlide={handlePptPlanDeleteSlide}
       onReorderSlides={handlePptPlanReorderSlides}
       onSaveAndPreview={handleOpenPreviewFromEditor}
+      canCompleteEdit={canEnterPreview}
+      isCompletingEdit={isCompletingEdit}
+      isChatActive={isChatActive}
+      isPlanPendingSync={isPlanPendingSync}
     />
   );
 

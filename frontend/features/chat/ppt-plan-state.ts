@@ -158,6 +158,28 @@ export function shouldSyncCompletedPptPlan(
   return getPptPlanSignature(extraction.completedSlides) !== lastSyncedSignature;
 }
 
+export type PlanPersistState = 'idle' | 'pending' | 'synced';
+
+/**
+ * Describes whether the plan currently shown in the editor matches the version
+ * that was last persisted to the backend.
+ *
+ * - `idle`: there is no plan to persist.
+ * - `pending`: the shown plan is a draft (streaming or not yet saved).
+ * - `synced`: the shown plan exists in the backend.
+ */
+export function getPlanPersistState(
+  effectivePlan: { slides: Slide[] } | undefined,
+  lastSyncedSignature: string
+): PlanPersistState {
+  const slides = effectivePlan?.slides ?? [];
+  if (slides.length === 0) {
+    return 'idle';
+  }
+
+  return getPptPlanSignature(slides) === lastSyncedSignature ? 'synced' : 'pending';
+}
+
 export function shouldApplyIncomingPlanToModal(
   editingSlideIndex: number | null,
   isMutating: boolean

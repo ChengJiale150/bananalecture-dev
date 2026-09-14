@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   createPptPlan,
   extractLatestPptPlanState,
+  getPlanPersistState,
   getPptPlanSignature,
   shouldApplyIncomingPlanToModal,
   shouldSyncCompletedPptPlan,
@@ -107,4 +108,34 @@ test('shouldApplyIncomingPlanToModal blocks prop sync while editing or mutating'
   assert.equal(shouldApplyIncomingPlanToModal(null, false), true);
   assert.equal(shouldApplyIncomingPlanToModal(0, false), false);
   assert.equal(shouldApplyIncomingPlanToModal(null, true), false);
+});
+
+const sampleSlides = [
+  { id: 'slide-1', type: 'cover' as const, title: '封面', description: '介绍', content: '内容' },
+];
+
+test('getPlanPersistState reports idle without slides, synced after backend persistence, and pending for drafts', () => {
+  assert.equal(getPlanPersistState(undefined, '[]'), 'idle');
+  assert.equal(getPlanPersistState({ slides: [] }, '[]'), 'idle');
+
+  const persistedSignature = getPptPlanSignature(sampleSlides);
+  assert.equal(getPlanPersistState({ slides: sampleSlides }, persistedSignature), 'synced');
+
+  assert.equal(getPlanPersistState({ slides: sampleSlides }, '[]'), 'pending');
+  assert.equal(
+    getPlanPersistState(
+      { slides: [{ ...sampleSlides[0], id: '', title: '新封面' }] },
+      persistedSignature
+    ),
+    'pending'
+  );
+});
+
+test('getPlanPersistState ignores backend ids when comparing the shown plan with the persisted one', () => {
+  const withBackendIds = [{ ...sampleSlides[0], id: 'slide-42', imagePath: 'a.webp' }];
+
+  assert.equal(
+    getPlanPersistState({ slides: withBackendIds }, getPptPlanSignature(sampleSlides)),
+    'synced'
+  );
 });

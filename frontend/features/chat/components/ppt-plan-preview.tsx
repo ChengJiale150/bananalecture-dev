@@ -11,6 +11,10 @@ interface PPTPlanPreviewProps {
   onDeleteSlide: (slideId: string) => Promise<boolean>;
   onReorderSlides: (slideIds: string[]) => Promise<boolean>;
   onSaveAndPreview?: () => void | Promise<void>;
+  canCompleteEdit?: boolean;
+  isCompletingEdit?: boolean;
+  isChatActive?: boolean;
+  isPlanPendingSync?: boolean;
 }
 
 export default function PPTPlanPreview({
@@ -20,6 +24,10 @@ export default function PPTPlanPreview({
   onDeleteSlide,
   onReorderSlides,
   onSaveAndPreview,
+  canCompleteEdit = true,
+  isCompletingEdit = false,
+  isChatActive = false,
+  isPlanPendingSync = false,
 }: PPTPlanPreviewProps) {
   if (!pptPlan || pptPlan.slides.length === 0) {
     return (
@@ -43,6 +51,10 @@ export default function PPTPlanPreview({
         onDeleteSlide={onDeleteSlide}
         onReorderSlides={onReorderSlides}
         onSaveAndPreview={onSaveAndPreview}
+        canCompleteEdit={canCompleteEdit}
+        isCompletingEdit={isCompletingEdit}
+        isChatActive={isChatActive}
+        isPlanPendingSync={isPlanPendingSync}
         onClose={() => {}}
         embedded={true}
       />
