@@ -146,6 +146,35 @@ export function getPptPlanSignature(slides: Slide[] | undefined) {
   );
 }
 
+/**
+ * Structural, order-sensitive comparison that includes slide ids.
+ *
+ * `getPptPlanSignature` intentionally ignores ids so a plan keeps the same "persisted"
+ * signature while the backend assigns ids. Callers that keep id-sensitive state (the
+ * editor calls `updateSlide`/`deleteSlide` with `slide.id`) must use this instead, so a
+ * new object with identical ids and content does not reset that state.
+ */
+export function isSameSlideList(a: Slide[] | undefined, b: Slide[] | undefined) {
+  const left = a ?? [];
+  const right = b ?? [];
+
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((slide, index) => {
+    const other = right[index];
+    return (
+      Boolean(other) &&
+      slide.id === other.id &&
+      slide.type === other.type &&
+      slide.title === other.title &&
+      slide.description === other.description &&
+      (slide.content ?? '') === (other.content ?? '')
+    );
+  });
+}
+
 export function shouldSyncCompletedPptPlan(
   status: string,
   extraction: ExtractedPptPlanState,

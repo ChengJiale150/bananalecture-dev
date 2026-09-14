@@ -10,15 +10,17 @@ import { useRouter } from 'next/navigation';
 import { useBasePath } from '@/contexts/base-path-context';
 import ChatInput, { type ChatOptions } from '@/features/chat/components/chat-input';
 import PPTPlanPreview from '@/features/chat/components/ppt-plan-preview';
+import PanelErrorBoundary from '@/features/chat/components/panel-error-boundary';
 import Sidebar from '@/features/chat/components/sidebar';
 import {
   createPptPlan,
   extractLatestPptPlanState,
   getPlanPersistState,
   getPptPlanSignature,
+  isSameSlideList,
   shouldSyncCompletedPptPlan,
-  type PlanPersistState,
 } from '@/features/chat/ppt-plan-state';
+import { getChatErrorText } from '@/features/chat/chat-status';
 import { ThinkingBlock } from '@/features/chat/components/thinking-block';
 import ToolView from '@/features/chat/components/tool-view';
 import {
@@ -78,17 +80,22 @@ function ChatInterface({
   onProjectUpdate: (project: Partial<ProjectRecord> & { id: string }) => void;
   onTemplateChange?: (projectId: string, templateId: string) => Promise<void>;
 }) {
-
   const { basePath } = useBasePath();
   const router = useRouter();
   const chatId = project.id;
-  const { status, sendMessage, messages, stop, setMessages } = useChat<PlannerAgentUIMessage>({
-    id: chatId,
-  });
+  const { status, sendMessage, messages, stop, setMessages, error } =
+    useChat<PlannerAgentUIMessage>({
+      id: chatId,
+      onError: requestError => {
+        console.error('[planner-chat] request failed', requestError);
+      },
+    });
 
   const [persistedPptPlan, setPersistedPptPlan] = useState(project.pptPlan);
   const [draftPptPlan, setDraftPptPlan] = useState<{ slides: Slide[] } | undefined>();
-  const [planPersistState, setPlanPersistState] = useState<PlanPersistState>('idle');
+  const [syncedPlanSignature, setSyncedPlanSignature] = useState(() =>
+    getPptPlanSignature(project.pptPlan?.slides)
+  );
   const [isCompletingEdit, setIsCompletingEdit] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<'editor' | 'chat'>(
     project.messages && project.messages.length > 0 ? 'editor' : 'chat'
@@ -99,9 +106,23 @@ function ChatInterface({
   const lastSyncedSignatureRef = useRef(stringifyProjectMessages(project.messages ?? []));
   const isPersistingRef = useRef(false);
   const shouldPersistAgainRef = useRef(false);
-  const lastSyncedPlanSignatureRef = useRef(getPptPlanSignature(project.pptPlan?.slides));
+  const syncedPlanSignatureRef = useRef(getPptPlanSignature(project.pptPlan?.slides));
 
   const effectivePptPlan = draftPptPlan ?? persistedPptPlan;
+
+  /**
+   * Derived during render instead of written by an effect: the persist state must never
+   * depend on a freshly allocated object identity, otherwise every render can queue
+   * another state update and React reports "Maximum update depth exceeded".
+   */
+  const planPersistState = getPlanPersistState(effectivePptPlan, syncedPlanSignature);
+
+  /** Records the plan content that the backend currently holds. */
+  const markPlanSynced = useCallback((slides: Slide[] | undefined) => {
+    const signature = getPptPlanSignature(slides);
+    syncedPlanSignatureRef.current = signature;
+    setSyncedPlanSignature(current => (current === signature ? current : signature));
+  }, []);
 
   const persistMessages = useCallback(async () => {
     if (isPersistingRef.current) {
@@ -177,9 +198,8 @@ function ChatInterface({
     lastSyncedSignatureRef.current = stringifyProjectMessages(projectMessages);
     setPersistedPptPlan(project.pptPlan);
     setDraftPptPlan(undefined);
-    setPlanPersistState(project.pptPlan?.slides.length ? 'synced' : 'idle');
+    markPlanSynced(project.pptPlan?.slides);
     setIsCompletingEdit(false);
-    lastSyncedPlanSignatureRef.current = getPptPlanSignature(project.pptPlan?.slides);
     projectTitleRef.current = project.title;
 
     return () => {
@@ -195,13 +215,11 @@ function ChatInterface({
       return;
     }
 
-    const nextSignature = getPptPlanSignature(project.pptPlan?.slides);
-    if (nextSignature === lastSyncedPlanSignatureRef.current) {
-      return;
+    if (!isSameSlideList(persistedPptPlan?.slides ?? [], project.pptPlan?.slides ?? [])) {
+      setPersistedPptPlan(project.pptPlan);
+      markPlanSynced(project.pptPlan?.slides);
     }
-
-    setPersistedPptPlan(project.pptPlan);
-    lastSyncedPlanSignatureRef.current = nextSignature;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId, project.id, project.pptPlan]);
 
   useEffect(() => {
@@ -223,22 +241,15 @@ function ChatInterface({
     schedulePersist(immediate);
   }, [messages, schedulePersist, status]);
 
-  useEffect(() => {
-    setPlanPersistState(current => {
-      const next = getPlanPersistState(effectivePptPlan, lastSyncedPlanSignatureRef.current);
-      return current === next ? current : next;
-    });
-  }, [effectivePptPlan]);
-
   const commitPptPlan = useCallback(
     (nextSlides: Slide[]) => {
       const nextPlan = createPptPlan(nextSlides);
       setPersistedPptPlan(nextPlan);
       setDraftPptPlan(undefined);
-      lastSyncedPlanSignatureRef.current = getPptPlanSignature(nextSlides);
+      markPlanSynced(nextSlides);
       onProjectUpdate({ id: chatId, pptPlan: nextPlan });
     },
-    [chatId, onProjectUpdate]
+    [chatId, markPlanSynced, onProjectUpdate]
   );
 
   const handlePptPlanSlideUpdate = useCallback(
@@ -324,9 +335,14 @@ function ChatInterface({
 
   useEffect(() => {
     const extraction = extractLatestPptPlanState(messages);
-    setDraftPptPlan(extraction.hasDraft ? createPptPlan(extraction.draftSlides) : undefined);
+    const nextDraft = extraction.hasDraft ? createPptPlan(extraction.draftSlides) : undefined;
+    // Only write when the draft content actually changed: allocating a new plan object on
+    // every run would make `effectivePptPlan` unstable for the editor below.
+    setDraftPptPlan(current =>
+      isSameSlideList(current?.slides ?? [], nextDraft?.slides ?? []) ? current : nextDraft
+    );
 
-    if (!shouldSyncCompletedPptPlan(status, extraction, lastSyncedPlanSignatureRef.current)) {
+    if (!shouldSyncCompletedPptPlan(status, extraction, syncedPlanSignatureRef.current)) {
       return;
     }
 
@@ -340,7 +356,6 @@ function ChatInterface({
         }
 
         commitPptPlan(persistedSlides);
-        setPlanPersistState('synced');
       } catch (error) {
         console.error('Failed to persist completed PPT plan:', error);
       }
@@ -353,19 +368,23 @@ function ChatInterface({
     };
   }, [messages, status, chatId, commitPptPlan]);
 
+  const errorMessage = status === 'error' ? getChatErrorText(error) : null;
+
   const editorPanel = (
-    <PPTPlanPreview
-      pptPlan={effectivePptPlan}
-      onUpdateSlide={handlePptPlanSlideUpdate}
-      onAddSlide={handlePptPlanAddSlide}
-      onDeleteSlide={handlePptPlanDeleteSlide}
-      onReorderSlides={handlePptPlanReorderSlides}
-      onSaveAndPreview={handleOpenPreviewFromEditor}
-      canCompleteEdit={canEnterPreview}
-      isCompletingEdit={isCompletingEdit}
-      isChatActive={isChatActive}
-      isPlanPendingSync={isPlanPendingSync}
-    />
+    <PanelErrorBoundary label="PPT 规划编辑器">
+      <PPTPlanPreview
+        pptPlan={effectivePptPlan}
+        onUpdateSlide={handlePptPlanSlideUpdate}
+        onAddSlide={handlePptPlanAddSlide}
+        onDeleteSlide={handlePptPlanDeleteSlide}
+        onReorderSlides={handlePptPlanReorderSlides}
+        onSaveAndPreview={handleOpenPreviewFromEditor}
+        canCompleteEdit={canEnterPreview}
+        isCompletingEdit={isCompletingEdit}
+        isChatActive={isChatActive}
+        isPlanPendingSync={isPlanPendingSync}
+      />
+    </PanelErrorBoundary>
   );
 
   const chatPanel = (
@@ -376,7 +395,9 @@ function ChatInterface({
             <BrainCircuit size={64} className="text-[var(--banana-blue)]" />
           </div>
           <h2 className="mb-2 text-3xl font-black tracking-tight text-gray-900">Banana Lecture</h2>
-          <p className="text-center text-lg font-medium text-gray-600 mb-8">What can I help you with today?</p>
+          <p className="text-center text-lg font-medium text-gray-600 mb-8">
+            What can I help you with today?
+          </p>
           <div className="w-full max-w-3xl">
             <ChatInput
               status={status}
@@ -384,6 +405,7 @@ function ChatInterface({
               stop={stop}
               isCentered={true}
               initialTemplate={(project.templateId ?? DEFAULT_TEMPLATE_ID) as TemplateId}
+              errorMessage={errorMessage}
             />
           </div>
         </div>
@@ -421,7 +443,10 @@ function ChatInterface({
                             const text = (part as { text?: string }).text;
                             if (typeof text !== 'string') return null;
                             return (
-                              <div key={index} className="prose prose-sm max-w-none dark:prose-invert">
+                              <div
+                                key={index}
+                                className="prose prose-sm max-w-none dark:prose-invert"
+                              >
                                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
                               </div>
                             );
@@ -473,7 +498,8 @@ function ChatInterface({
                                     p.output ||
                                     p.toolInvocation?.output,
                                   state: p.state || p.toolInvocation?.state,
-                                  toolCallId: p.toolCallId || p.toolInvocation?.toolCallId || 'unknown',
+                                  toolCallId:
+                                    p.toolCallId || p.toolInvocation?.toolCallId || 'unknown',
                                   approval: p.approval || p.toolInvocation?.approval,
                                 }}
                               />
@@ -486,7 +512,9 @@ function ChatInterface({
                       })}
                       {!message.parts && (message as any).content && (
                         <div className="prose prose-sm max-w-none dark:prose-invert">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{(message as any).content}</ReactMarkdown>
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {(message as any).content}
+                          </ReactMarkdown>
                         </div>
                       )}
                     </div>
@@ -510,6 +538,7 @@ function ChatInterface({
                 onSubmit={handleSendMessage}
                 stop={stop}
                 isCentered={false}
+                errorMessage={errorMessage}
               />
             </div>
           </div>
@@ -523,7 +552,9 @@ function ChatInterface({
       <div className="hidden h-full overflow-x-hidden xl:block w-full">
         <div className="flex h-full w-full">
           {messages.length > 0 && (
-            <div className="w-[56%] min-w-[500px] border-r-2 border-gray-200 p-3">{editorPanel}</div>
+            <div className="w-[56%] min-w-[500px] border-r-2 border-gray-200 p-3">
+              {editorPanel}
+            </div>
           )}
           {chatPanel}
         </div>
@@ -652,7 +683,10 @@ export default function ChatPage() {
     if (isCreatingProject) return;
     setIsCreatingProject(true);
     try {
-      const projectId = await createProject({ name: DEFAULT_PROJECT_TITLE, template_id: DEFAULT_TEMPLATE_ID });
+      const projectId = await createProject({
+        name: DEFAULT_PROJECT_TITLE,
+        template_id: DEFAULT_TEMPLATE_ID,
+      });
       await loadProjectsPage(DEFAULT_PROJECT_LIST_PAGE);
       await refreshCurrentProject(projectId);
     } finally {
@@ -706,15 +740,10 @@ export default function ChatPage() {
     [currentProject?.id, loadProjectsPage, projectPagination.page, refreshCurrentProject]
   );
 
-  const handleTemplateChange = useCallback(
-    async (projectId: string, templateId: string) => {
-      await updateProjectTemplate(projectId, templateId);
-      setCurrentProject(prev =>
-        prev?.id === projectId ? { ...prev, templateId } : prev
-      );
-    },
-    []
-  );
+  const handleTemplateChange = useCallback(async (projectId: string, templateId: string) => {
+    await updateProjectTemplate(projectId, templateId);
+    setCurrentProject(prev => (prev?.id === projectId ? { ...prev, templateId } : prev));
+  }, []);
 
   const handleProjectUpdate = useCallback(
     (updatedProject: Partial<ProjectRecord> & { id: string }) => {

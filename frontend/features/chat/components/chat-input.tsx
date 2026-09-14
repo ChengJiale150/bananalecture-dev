@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Square, Layers, Users, Palette, GraduationCap } from 'lucide-react';
+import { AlertTriangle, Send, Square, Layers, Users, Palette, GraduationCap } from 'lucide-react';
 import { DEFAULT_TEMPLATE_ID, TEMPLATE_REGISTRY, type TemplateId } from '@/shared/template-config';
+import { getComposerState } from '@/features/chat/chat-status';
 
 export interface ChatOptions {
   pageCount: string;
@@ -15,12 +16,15 @@ export default function ChatInput({
   stop,
   isCentered = false,
   initialTemplate = DEFAULT_TEMPLATE_ID,
+  errorMessage = null,
 }: {
   status: string;
   onSubmit: (text: string, options?: ChatOptions) => void;
   stop?: () => void;
   isCentered?: boolean;
   initialTemplate?: TemplateId;
+  /** Upstream failure of the last request; shown above the composer. */
+  errorMessage?: string | null;
 }) {
   const [text, setText] = useState('');
   const [pageCount, setPageCount] = useState('5-10');
@@ -70,11 +74,26 @@ export default function ChatInput({
 
   const containerClassName = isCentered ? 'w-full' : 'w-full pt-4 pb-6 px-4 bg-[#F0F8FF]';
 
+  const composer = getComposerState(status, text.trim().length > 0);
+
   const selectClassName =
     'appearance-none bg-white border-2 border-gray-900 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 pr-8 font-medium cursor-pointer hover:bg-gray-50 transition-colors shadow-[2px_2px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none';
 
   return (
     <div className={containerClassName}>
+      {errorMessage && (
+        <div
+          role="alert"
+          className="mx-auto mb-3 flex max-w-3xl items-start gap-2 rounded-xl border-2 border-gray-900 bg-red-50 p-3 text-sm font-bold text-red-700 shadow-[4px_4px_0px_rgba(0,0,0,1)]"
+        >
+          <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+          <div className="space-y-1">
+            <p className="break-words">{errorMessage}</p>
+            <p className="text-xs font-medium text-red-500">可直接输入新内容并重新发送。</p>
+          </div>
+        </div>
+      )}
+
       <div
         className={`max-w-3xl mx-auto relative border-2 border-gray-900 rounded-2xl bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] focus-within:translate-x-[-1px] focus-within:translate-y-[-1px] focus-within:shadow-[6px_6px_0px_rgba(0,0,0,1)] transition-all p-3 ${isCentered ? 'flex flex-col gap-3' : 'flex items-end gap-3'}`}
       >
@@ -144,14 +163,14 @@ export default function ChatInput({
                 ? 'Describe the topic you want to learn about...'
                 : 'Create your Lecture'
             }
-            disabled={status !== 'ready' && status !== 'submitted'}
+            disabled={!composer.canType}
             value={text}
             onChange={e => setText(e.target.value)}
             onKeyDown={handleKeyDown}
             rows={minRows}
           />
 
-          {status === 'streaming' || status === 'submitted' ? (
+          {composer.showStop ? (
             <button
               onClick={stop}
               className="p-3 rounded-xl bg-[var(--banana-red)] text-white border-2 border-gray-900 hover:brightness-110 active:scale-95 transition-all shadow-[2px_2px_0px_rgba(0,0,0,1)]"
@@ -162,7 +181,7 @@ export default function ChatInput({
           ) : (
             <button
               onClick={() => handleSubmit()}
-              disabled={!text.trim() || status !== 'ready'}
+              disabled={!composer.canSend}
               className="p-3 rounded-xl bg-[var(--banana-blue)] text-white border-2 border-gray-900 hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[2px_2px_0px_rgba(0,0,0,1)]"
               title="Send message"
             >

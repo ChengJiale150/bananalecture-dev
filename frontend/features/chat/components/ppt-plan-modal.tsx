@@ -18,7 +18,7 @@ import {
 import { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { shouldApplyIncomingPlanToModal } from '@/features/chat/ppt-plan-state';
+import { isSameSlideList, shouldApplyIncomingPlanToModal } from '@/features/chat/ppt-plan-state';
 import type { Slide, SlideType } from '@/features/projects/types';
 import { moveSlideDown, moveSlideUp } from '@/features/projects/types';
 
@@ -76,7 +76,9 @@ export default function PPTPlanModal({
       return;
     }
 
-    setSlides(pptPlan.slides);
+    // Adopt the incoming plan only when it actually differs, so prop identity churn
+    // (a new array with the same slides) cannot reset local editor state on every render.
+    setSlides(current => (isSameSlideList(current, pptPlan.slides) ? current : pptPlan.slides));
   }, [editingSlideIndex, isMutating, pptPlan.slides]);
 
   useEffect(() => {
@@ -309,7 +311,7 @@ export default function PPTPlanModal({
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => void saveEditSlide()}
-                          disabled={isMutating || !editingSlide?.title.trim()}
+                          disabled={isMutating || !editingSlide?.title?.trim()}
                           className="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors border-2 border-green-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <Save size={16} />

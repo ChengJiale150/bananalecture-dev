@@ -5,6 +5,7 @@ import {
   extractLatestPptPlanState,
   getPlanPersistState,
   getPptPlanSignature,
+  isSameSlideList,
   shouldApplyIncomingPlanToModal,
   shouldSyncCompletedPptPlan,
 } from '@/features/chat/ppt-plan-state';
@@ -137,5 +138,20 @@ test('getPlanPersistState ignores backend ids when comparing the shown plan with
   assert.equal(
     getPlanPersistState({ slides: withBackendIds }, getPptPlanSignature(sampleSlides)),
     'synced'
+  );
+});
+
+test('isSameSlideList ignores object identity but compares ids and content', () => {
+  const clone = sampleSlides.map(slide => ({ ...slide }));
+
+  assert.equal(isSameSlideList(sampleSlides, clone), true);
+  assert.equal(isSameSlideList(undefined, []), true);
+  assert.equal(isSameSlideList(undefined, sampleSlides), false);
+
+  assert.equal(isSameSlideList(sampleSlides, [{ ...sampleSlides[0], id: 'slide-2' }]), false);
+  assert.equal(isSameSlideList(sampleSlides, [{ ...sampleSlides[0], title: '改过的标题' }]), false);
+  assert.equal(
+    isSameSlideList(sampleSlides, [sampleSlides[0], { ...sampleSlides[0], id: 'slide-2' }]),
+    false
   );
 });
