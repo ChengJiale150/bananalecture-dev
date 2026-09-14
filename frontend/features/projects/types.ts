@@ -100,6 +100,25 @@ export const GENERATION_STAGE_STATUSES = [
 ] as const;
 export const GENERATION_SESSION_STATUSES = ['running', 'paused', 'completed', 'failed', 'cancelled'] as const;
 
+export const GENERATION_STAGE_LABELS: Record<(typeof GENERATION_STAGES)[number], string> = {
+  images: '图片',
+  dialogues: '口播稿',
+  audio: '音频',
+  video: '视频',
+};
+
+export const GENERATION_STAGE_STATUS_TEXTS: Record<
+  (typeof GENERATION_STAGE_STATUSES)[number],
+  string
+> = {
+  pending: '待生成',
+  running: '生成中',
+  paused: '已暂停',
+  completed: '已完成',
+  failed: '生成失败',
+  cancelled: '已取消',
+};
+
 export type GenerationStage = (typeof GENERATION_STAGES)[number];
 export type GenerationSessionMode = (typeof GENERATION_SESSION_MODES)[number];
 export type GenerationStageStatus = (typeof GENERATION_STAGE_STATUSES)[number];
@@ -122,5 +141,6 @@ export interface GenerationSessionState {
   stages: GenerationStageState[];
   activeTask?: TaskProgress | null;
   errorMessage?: string | null;
+  failedStage?: GenerationStage | null;
   updatedAt: number;
 }

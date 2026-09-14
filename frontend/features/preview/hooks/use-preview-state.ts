@@ -45,6 +45,7 @@ import {
   finalizeGenerationSession,
   getEstimatedRemainingSeconds,
   getGenerationOverallProgress,
+  getGenerationStageLabel,
   isGenerationSessionActive,
   isGenerationSessionResumable,
   updateGenerationSessionTask,
@@ -247,7 +248,7 @@ export function usePreviewState(
 
       const stages = GENERATION_STAGES.map(s => ({
         stage: s,
-        label: s,
+        label: getGenerationStageLabel(s),
         status: (s === stage ? 'running' : 'pending') as GenerationStageStatus,
         progress: 0,
         taskId: s === stage ? task.id : undefined,

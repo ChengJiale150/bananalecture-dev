@@ -6,17 +6,14 @@ import type {
   GenerationStageStatus,
   TaskProgress,
 } from '@/features/projects/types';
-import { GENERATION_STAGES } from '@/features/projects/types';
-
-const STAGE_LABELS: Record<GenerationStage, string> = {
-  images: '图片',
-  dialogues: '口播稿',
-  audio: '音频',
-  video: '视频',
-};
+import {
+  GENERATION_STAGES,
+  GENERATION_STAGE_LABELS,
+  GENERATION_STAGE_STATUS_TEXTS,
+} from '@/features/projects/types';
 
 export function getGenerationStageLabel(stage: GenerationStage) {
-  return STAGE_LABELS[stage];
+  return GENERATION_STAGE_LABELS[stage] ?? stage;
 }
 
 export function createGenerationStages(): GenerationStageState[] {
@@ -74,12 +71,14 @@ export function updateGenerationSessionTask(
 
   const nextStatus = mapTaskStatusToStageStatus(task.status);
   const nextProgress = getTaskProgressPercent(task);
+  const nextSessionStatus = mapTaskStatusToSessionStatus(task.status);
 
   return {
     ...session,
-    status: mapTaskStatusToSessionStatus(task.status),
+    status: nextSessionStatus,
     activeTask: task,
     errorMessage: task.errorMessage ?? null,
+    failedStage: nextSessionStatus === 'failed' ? session.currentStage : null,
     stages: session.stages.map(stage =>
       stage.stage === session.currentStage
         ? {
@@ -182,6 +181,7 @@ export function finalizeGenerationSession(
     status,
     activeTask: task ?? null,
     errorMessage: task?.errorMessage ?? session.errorMessage ?? null,
+    failedStage: status === 'failed' ? currentStage : session.failedStage ?? null,
     stages: currentStage
       ? session.stages.map(stage =>
           stage.stage === currentStage
@@ -306,6 +306,103 @@ export function getCurrentGenerationStageState(session: GenerationSessionState |
 
 export function isGenerationSessionActive(session: GenerationSessionState | null) {
   return Boolean(session && session.status === 'running');
+}
+
+export interface GenerationStatusView {
+  stage: GenerationStage;
+  label: string;
+  statusText: string;
+  progressText: string | null;
+  isActive: boolean;
+}
+
+export interface GenerationFailureView {
+  stageLabel: string | null;
+  message: string;
+}
+
+export function getActiveGenerationStageState(session: GenerationSessionState | null) {
+  if (!session) {
+    return null;
+  }
+
+  const fallbackStage =
+    session.status === 'running'
+      ? session.stages.find(stage => stage.status === 'running') ?? null
+      : null;
+
+  const activeStage = session.currentStage
+    ? session.stages.find(stage => stage.stage === session.currentStage) ?? fallbackStage
+    : fallbackStage;
+
+  if (!activeStage) {
+    return null;
+  }
+
+  if (session.status !== 'running' && session.status !== 'paused' && session.status !== 'failed') {
+    return null;
+  }
+
+  return activeStage;
+}
+
+export function getGenerationStageStatus(
+  session: GenerationSessionState | null
+): GenerationStatusView | null {
+  const stageState = getActiveGenerationStageState(session);
+  if (!stageState) {
+    return null;
+  }
+
+  const isActive = session?.status === 'running';
+  const task = session?.activeTask ?? null;
+  const totalSteps = task?.totalSteps ?? 0;
+  const currentStep = Math.max(0, task?.currentStep ?? 0);
+
+  let progressText: string | null = null;
+  if (isActive && totalSteps > 0) {
+    if (stageState.stage === 'video' && currentStep >= totalSteps) {
+      progressText = '正在合成视频';
+    } else {
+      const displayStep = Math.min(Math.max(currentStep, 1), totalSteps);
+      progressText = `第 ${displayStep}/${totalSteps} 页`;
+    }
+  }
+
+  let statusText = GENERATION_STAGE_STATUS_TEXTS.running;
+  if (session?.status === 'paused') {
+    statusText = GENERATION_STAGE_STATUS_TEXTS.paused;
+  } else if (session?.status === 'failed' || stageState.status === 'failed') {
+    statusText = GENERATION_STAGE_STATUS_TEXTS.failed;
+  } else if (stageState.status === 'pending') {
+    statusText = GENERATION_STAGE_STATUS_TEXTS.pending;
+  }
+
+  return {
+    stage: stageState.stage,
+    label: stageState.label || getGenerationStageLabel(stageState.stage),
+    statusText,
+    progressText,
+    isActive,
+  };
+}
+
+export function getGenerationFailure(
+  session: GenerationSessionState | null
+): GenerationFailureView | null {
+  if (!session || session.status !== 'failed') {
+    return null;
+  }
+
+  const failedStage = session.failedStage ?? session.currentStage ?? null;
+  const stageLabel = failedStage ? getGenerationStageLabel(failedStage) : null;
+
+  return {
+    stageLabel,
+    message: stageLabel
+      ? `${stageLabel}生成失败，请点击“继续生成”重试`
+      : '生成失败，请点击“继续生成”重试',
+  };
 }
 
 export function isGenerationSessionResumable(session: GenerationSessionState | null) {

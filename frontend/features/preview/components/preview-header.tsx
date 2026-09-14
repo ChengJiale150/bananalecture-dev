@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   ArrowLeft,
   ChevronDown,
   Download,
@@ -8,6 +9,7 @@ import {
   Pause,
   Play,
   RefreshCw,
+  RotateCcw,
   Settings,
   Sparkles,
   Square,
@@ -18,6 +20,10 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useBasePath } from '@/contexts/base-path-context';
 import type { GenerationSessionState, GenerationStage } from '@/features/projects/types';
+import {
+  getGenerationFailure,
+  getGenerationStageStatus,
+} from '@/features/preview/utils/generation-session';
 
 interface PreviewHeaderProps {
   isGeneratingAll: boolean;
@@ -64,6 +70,25 @@ export function PreviewHeader({
   const { basePath } = useBasePath();
   const [showAdvancedTools, setShowAdvancedTools] = useState(false);
   const progressValue = generationSession ? Math.round(overallGenerationProgress) : 0;
+  const stageStatus = useMemo(() => getGenerationStageStatus(generationSession), [generationSession]);
+  const generationFailure = useMemo(
+    () => getGenerationFailure(generationSession),
+    [generationSession]
+  );
+  const isFailed = Boolean(generationFailure);
+  const isStageActive = Boolean(stageStatus?.isActive);
+
+  const statusText = useMemo(() => {
+    if (!stageStatus) {
+      return '尚未开始生成';
+    }
+
+    if (stageStatus.isActive) {
+      return `正在生成${stageStatus.label}`;
+    }
+
+    return `${stageStatus.label} · ${stageStatus.statusText}`;
+  }, [stageStatus]);
 
   const remainingTimeText = useMemo(() => {
     if (estimatedRemainingSeconds == null || estimatedRemainingSeconds <= 0) return null;
@@ -78,16 +103,15 @@ export function PreviewHeader({
     const m = Math.floor((s % 3600) / 60);
     return `约${h}时${m}分`;
   }, [estimatedRemainingSeconds]);
-  const progressTone =
-    generationSession?.status === 'failed'
-      ? 'bg-red-500'
-      : generationSession?.status === 'cancelled'
-        ? 'bg-gray-400'
-        : generationSession?.status === 'paused'
-          ? 'bg-amber-500'
-          : generationSession?.status === 'completed'
-            ? 'bg-green-500'
-            : 'bg-[var(--banana-blue)]';
+  const progressTone = isFailed
+    ? 'bg-red-500'
+    : generationSession?.status === 'cancelled'
+      ? 'bg-gray-400'
+      : generationSession?.status === 'paused'
+        ? 'bg-amber-500'
+        : generationSession?.status === 'completed'
+          ? 'bg-green-500'
+          : 'bg-[var(--banana-blue)]';
 
   return (
     <header className="bg-white border-b-4 border-gray-900 shadow-sm flex-none z-10 relative">
@@ -103,10 +127,12 @@ export function PreviewHeader({
           {isResumable ? (
             <button
               onClick={handleResumeGeneration}
-              className="flex items-center gap-2 px-6 py-3 text-white font-black rounded-full border-2 border-gray-900 transition-all shadow-[3px_3px_0px_rgba(0,0,0,1)] bg-emerald-500 hover:brightness-110"
+              className={`flex items-center gap-2 px-6 py-3 text-white font-black rounded-full border-2 border-gray-900 transition-all shadow-[3px_3px_0px_rgba(0,0,0,1)] hover:brightness-110 ${
+                isFailed ? 'bg-red-500' : 'bg-emerald-500'
+              }`}
             >
-              <Play size={18} fill="currentColor" />
-              继续生成
+              {isFailed ? <RotateCcw size={18} /> : <Play size={18} fill="currentColor" />}
+              {isFailed ? '继续生成（重试）' : '继续生成'}
             </button>
           ) : isGeneratingAll ? (
             <button
@@ -204,12 +230,22 @@ export function PreviewHeader({
             <div className="min-w-14 text-right text-sm font-black text-gray-900">
               {progressValue}%
             </div>
+            <div
+              className="flex items-center gap-2 whitespace-nowrap text-sm font-bold text-gray-600"
+              aria-live="polite"
+            >
+              {isStageActive && <Loader2 size={14} className="animate-spin" />}
+              <span className={isFailed ? 'text-red-600' : undefined}>{statusText}</span>
+              {stageStatus?.progressText && (
+                <span className="text-xs font-bold text-gray-500">{stageStatus.progressText}</span>
+              )}
+            </div>
             {remainingTimeText && (
               <div className="text-sm font-bold text-gray-600 whitespace-nowrap">
                 {remainingTimeText}
               </div>
             )}
-            {isGeneratingAll && (
+            {isStageActive && (
               <button
                 onClick={handleStopGeneration}
                 className="flex items-center gap-1 rounded-lg bg-red-100 px-3 py-1.5 text-sm font-bold text-red-600 transition-colors hover:bg-red-200"
@@ -220,6 +256,22 @@ export function PreviewHeader({
               </button>
             )}
           </div>
+
+          {generationFailure && (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-red-200 bg-red-50 px-3 py-2">
+              <div className="flex items-center gap-2 text-sm font-bold text-red-600">
+                <AlertTriangle size={16} />
+                {generationFailure.message}
+              </div>
+              <button
+                onClick={handleResumeGeneration}
+                className="flex items-center gap-1 rounded-lg border-2 border-red-500 bg-white px-3 py-1.5 text-sm font-bold text-red-600 transition-colors hover:bg-red-50"
+              >
+                <RotateCcw size={14} />
+                继续生成
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>
