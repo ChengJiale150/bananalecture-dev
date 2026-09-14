@@ -31,6 +31,30 @@ export function getComposerState(status: string, hasText: boolean): ComposerStat
   };
 }
 
+/** Minimal transcript shape needed to decide whether an assistant reply is on screen. */
+export interface ChatMessageLike {
+  role?: string;
+}
+
+/**
+ * The optimistic "Agent / thinking..." bubble is needed exactly while a request is in
+ * flight but no assistant message has been rendered yet.
+ *
+ * `useChat` only pushes the assistant message when the first stream chunk arrives, so
+ * between `sendMessage()` and the first token the transcript would otherwise end on the
+ * user's own message — leaving the user staring at a silent panel while the API warms up.
+ */
+export function shouldShowPendingAssistant(
+  status: string,
+  messages: readonly ChatMessageLike[]
+): boolean {
+  if (status !== 'submitted' && status !== 'streaming') {
+    return false;
+  }
+
+  return messages[messages.length - 1]?.role !== 'assistant';
+}
+
 function clampErrorText(text: string) {
   return text.length > MAX_ERROR_TEXT_LENGTH ? `${text.slice(0, MAX_ERROR_TEXT_LENGTH)}…` : text;
 }

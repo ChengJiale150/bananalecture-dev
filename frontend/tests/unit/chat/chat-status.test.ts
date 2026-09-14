@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getChatErrorText, getComposerState } from '@/features/chat/chat-status';
+import {
+  getChatErrorText,
+  getComposerState,
+  shouldShowPendingAssistant,
+} from '@/features/chat/chat-status';
 
 test('getComposerState keeps the composer usable after a failed request', () => {
   const failed = getComposerState('error', true);
@@ -65,4 +69,29 @@ test('getChatErrorText keeps plain text and truncates very long payloads', () =>
   const long = getChatErrorText(new Error('x'.repeat(500)));
   assert.equal(long.length, 201);
   assert.ok(long.endsWith('…'));
+});
+
+test('shouldShowPendingAssistant fills the gap before the first stream chunk', () => {
+  const userTurn = [{ role: 'user' }];
+
+  // Right after sendMessage(): the request is in flight, the assistant bubble is not there yet.
+  assert.equal(shouldShowPendingAssistant('submitted', userTurn), true);
+  // The SDK pushed the assistant message when the stream started — the real bubble takes over.
+  assert.equal(
+    shouldShowPendingAssistant('streaming', [{ role: 'user' }, { role: 'assistant' }]),
+    false
+  );
+  // `regenerate`/resume can stream while the transcript still ends on the user message.
+  assert.equal(shouldShowPendingAssistant('streaming', userTurn), true);
+});
+
+test('shouldShowPendingAssistant never renders outside an active request', () => {
+  assert.equal(shouldShowPendingAssistant('ready', [{ role: 'user' }]), false);
+  assert.equal(
+    shouldShowPendingAssistant('ready', [{ role: 'user' }, { role: 'assistant' }]),
+    false
+  );
+  // A failed or aborted request is surfaced by the error card, not by a spinner bubble.
+  assert.equal(shouldShowPendingAssistant('error', [{ role: 'user' }]), false);
+  assert.equal(shouldShowPendingAssistant('submitted', []), true);
 });

@@ -20,7 +20,8 @@ import {
   isSameSlideList,
   shouldSyncCompletedPptPlan,
 } from '@/features/chat/ppt-plan-state';
-import { getChatErrorText } from '@/features/chat/chat-status';
+import { getChatErrorText, shouldShowPendingAssistant } from '@/features/chat/chat-status';
+import PendingAgentMessage from '@/features/chat/components/pending-agent-message';
 import { ThinkingBlock } from '@/features/chat/components/thinking-block';
 import ToolView from '@/features/chat/components/tool-view';
 import {
@@ -293,6 +294,12 @@ function ChatInterface({
   /** A chat request is in flight (with or without a `create_ppt_plan` tool call). */
   const isChatActive = status === 'submitted' || status === 'streaming';
   /**
+   * `useChat` appends the assistant message only when the first stream chunk arrives, so
+   * the transcript gets an optimistic "Agent / thinking..." bubble from the instant the
+   * user hits send until the real reply is on screen.
+   */
+  const showPendingAssistant = shouldShowPendingAssistant(status, messages);
+  /**
    * The plan shown in the editor differs from the version persisted in the backend.
    * `synced` is only produced after the backend accepted the slides, so this is false
    * during a pure conversation where no tool call changes the plan.
@@ -517,7 +524,9 @@ function ChatInterface({
                 </div>
               ))}
 
-              {status === 'streaming' && (
+              {showPendingAssistant && <PendingAgentMessage />}
+
+              {status === 'streaming' && !showPendingAssistant && (
                 <div className="ml-4 flex items-center gap-2 text-sm text-gray-400">
                   <Loader2 size={14} className="animate-spin" />
                   <span>Agent is working...</span>
