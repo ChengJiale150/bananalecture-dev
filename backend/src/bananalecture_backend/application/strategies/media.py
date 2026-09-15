@@ -58,8 +58,15 @@ class DefaultDialoguePromptStrategy:
             sections.append(f"前一页口播稿:\n{context.previous_script}")
         else:
             sections.append("这是首页, 前一页口播稿: 无")
-        if self.cue_config.prop_role and context.slide_type == SlideType.COVER.value:
-            sections.append(f"当前页为封面页, 禁止生成{self.cue_config.prop_role}角色。")
+        if self.cue_config.prop_role:
+            prop_role = self.cue_config.prop_role
+            if context.slide_type == SlideType.COVER.value:
+                sections.append(f"当前页为封面页, 禁止生成{prop_role}角色。")
+            else:
+                sections.append(
+                    f"{prop_role}角色由前期规划决定: "
+                    f"仅当当前页内容中写明掏出道具时, 才生成角色为{prop_role}的对话, 不要自行发挥。"
+                )
         return "\n\n".join(sections)
 
 

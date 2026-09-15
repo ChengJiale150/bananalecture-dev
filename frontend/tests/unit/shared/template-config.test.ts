@@ -5,6 +5,7 @@ import {
   DEFAULT_TEMPLATE_ID,
   TEMPLATE_REGISTRY,
   getDialogueRoles,
+  getPropGuideline,
   getSlideStructure,
   getStyleForTemplate,
   getTemplateName,
@@ -41,6 +42,17 @@ test('getToolDescription returns the configured description and falls back for u
     getToolDescription(UNKNOWN_TEMPLATE_ID),
     TEMPLATE_REGISTRY[DEFAULT_TEMPLATE_ID].toolDescription
   );
+});
+
+test('getPropGuideline only applies to the doraemon template', () => {
+  const guideline = getPropGuideline('doraemon');
+
+  assert.equal(guideline, TEMPLATE_REGISTRY.doraemon.propGuideline);
+  assert.ok(guideline);
+  assert.match(guideline, /最多 2 个/);
+  assert.match(guideline, /content 中写明/);
+  assert.equal(getPropGuideline('xiyouji'), undefined);
+  assert.equal(getPropGuideline(UNKNOWN_TEMPLATE_ID), undefined);
 });
 
 test('getStyleForTemplate resolves styles and falls back for unknown template or style', () => {

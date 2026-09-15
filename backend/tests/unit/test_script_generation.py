@@ -138,3 +138,21 @@ def test_constrained_item_model_rejects_unknown_role() -> None:
             emotion=DialogueEmotion.NEUTRAL,
             speed=DialogueSpeed.MEDIUM,
         )
+
+
+def test_doraemon_system_prompt_defers_prop_choice_to_content_with_cap() -> None:
+    template = get_template_config(DEFAULT_TEMPLATE_ID)
+    assert template is not None
+
+    prompt = template.system_prompt
+
+    assert "content 中明确写明" in prompt
+    assert "全片最多 2 次" in prompt
+    assert "首次掏出道具" not in prompt
+
+
+def test_xiyouji_system_prompt_has_no_prop_rule() -> None:
+    template = get_template_config("xiyouji")
+    assert template is not None
+
+    assert "道具" not in template.system_prompt

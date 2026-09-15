@@ -1,6 +1,7 @@
 import type { PPTPlan } from '@/features/projects/types';
 import {
   DEFAULT_TEMPLATE_ID,
+  getPropGuideline,
   getSlideStructure,
   getStyleForTemplate,
   type TemplateId,
@@ -48,6 +49,15 @@ ${STANDARD_STRUCTURE}
 - **风格统一**：确保所有页面都符合 **${currentStyle.name}** 的风格设定
 - **画面感强**：\`content\` 字段必须是画面描述，不是对话脚本
 `;
+
+  const propGuideline = getPropGuideline(templateId);
+  if (propGuideline) {
+    prompt += `
+## 道具使用规范（全片统一规划）
+道具是否出现、出现几次由你在规划阶段统一决定，后续对话稿只依据 content 决定道具角色：
+${propGuideline}
+`;
+  }
 
   if (pageCount) {
     let pageCountText = pageCount;

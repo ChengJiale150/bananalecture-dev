@@ -45,6 +45,22 @@ def test_default_dialogue_prompt_strategy_builds_prompt_with_previous_script() -
     assert "前一页口播稿:" in prompt
     assert "大雄：这一页先让我来开场。" in prompt
     assert "禁止生成道具角色" not in prompt
+    assert "道具角色由前期规划决定" in prompt
+    assert "不要自行发挥" in prompt
+
+
+def test_default_dialogue_prompt_strategy_omits_prop_rules_for_templates_without_props() -> None:
+    prompt = DefaultDialoguePromptStrategy(_xiyouji_cue()).build(
+        DialoguePromptContext(
+            slide_type="content",
+            title="Motion",
+            description="Topic",
+            content="Force and velocity",
+            previous_script=None,
+        )
+    )
+
+    assert "道具" not in prompt
 
 
 def test_doraemon_audio_cue_strategy_resolves_expected_assets() -> None:

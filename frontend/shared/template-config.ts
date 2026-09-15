@@ -6,6 +6,8 @@ interface TemplateSlideStructure {
   slideStructure: string;
   styles: Record<string, { name: string; role: string; description: string; visualPrompt: string }>;
   toolDescription: string;
+  /** Lightweight, video-level prop plan injected into the planner prompt. Omitted by templates without props. */
+  propGuideline?: string;
 }
 
 export const TEMPLATE_REGISTRY: Record<string, TemplateSlideStructure & { name: string; roles: readonly string[] }> = {
@@ -38,6 +40,11 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateSlideStructure & { name: 
    - 描述：肯定学习者的进步，鼓励将所学应用到生活中，或预告下一次有趣的探索。营造温馨、成就感满满的氛围
    - 画面描述 (content)：哆啦A梦和大雄向屏幕前的观众开心挥手或竖起大拇指，背景可以是夕阳下的空地或温馨的房间，传递出陪伴与成长的温暖感
 `,
+    propGuideline: `- **道具总数**：全片道具最多 2 个，宁少勿多，能不用就不用
+- **使用条件**：仅当抽象概念必须借助具象道具才能讲清楚时，才在该页安排道具
+- **写法要求**：使用道具的页面，必须在 content 中写明哆啦A梦从口袋里掏出该道具的画面和道具名称
+- **一致性**：content 中没有写明掏出道具的页面，一律不得出现道具
+- **禁止页面**：封面页禁止出现道具`,
     styles: {
       multi_panel: {
         name: '多格动漫',
@@ -135,6 +142,10 @@ export function getSlideStructure(templateId: string): string {
 
 export function getToolDescription(templateId: string): string {
   return TEMPLATE_REGISTRY[templateId]?.toolDescription ?? TEMPLATE_REGISTRY.doraemon.toolDescription;
+}
+
+export function getPropGuideline(templateId: string): string | undefined {
+  return TEMPLATE_REGISTRY[templateId]?.propGuideline;
 }
 
 export function getStyleForTemplate(
