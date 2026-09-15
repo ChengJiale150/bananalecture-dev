@@ -21,6 +21,17 @@ IMAGE_PROMPT_EMPTY = "Image prompt must not be empty"
 IMAGE_STATUS_FAILED = "Image generation failed"
 IMAGE_STATUS_VIOLATION = "Image generation violation"
 IMAGE_RESULTS_MISSING = "Image API response is missing results[0].url"
+IMAGE_ERROR_BODY_LIMIT = 500
+HTTP_STATUS_BAD_REQUEST = 400
+HTTP_STATUS_SERVER_ERROR = 500
+
+
+def _summarize_body(body: str) -> str:
+    """Collapse whitespace and truncate an upstream response body for single-line logging."""
+    collapsed = " ".join(body.split())
+    if len(collapsed) <= IMAGE_ERROR_BODY_LIMIT:
+        return collapsed
+    return f"{collapsed[:IMAGE_ERROR_BODY_LIMIT]}…"
 
 
 class ImageGenerationClient:
@@ -94,8 +105,22 @@ class ImageGenerationClient:
                 },
                 json=payload,
             )
+            self._log_http_failure(response, model, url)
             response.raise_for_status()
             return cast("dict[str, Any]", response.json())
+
+    def _log_http_failure(self, response: httpx.Response, model: str, url: str) -> None:
+        """Log the upstream status and response body whenever the image API answers with an error status."""
+        if response.status_code < HTTP_STATUS_BAD_REQUEST:
+            return
+
+        level = "ERROR" if response.status_code >= HTTP_STATUS_SERVER_ERROR else "WARNING"
+        global_logger.bind(
+            model=model,
+            url=url,
+            status_code=response.status_code,
+            response_body=_summarize_body(response.text),
+        ).log(level, "external_image_http_error")
 
     async def _download_image(self, image_url: str) -> bytes:
         async with httpx.AsyncClient(timeout=self.settings.REQUEST_TIMEOUT_SECONDS) as client:
