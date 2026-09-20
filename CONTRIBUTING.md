@@ -47,6 +47,18 @@ We use **Conventional Commits**:
 
 Example: `feat: add user authentication module`
 
+### Changelog
+
+Behaviour-changing commits must also be recorded in [CHANGELOG.md](CHANGELOG.md), **in the
+same commit**:
+
+- Required for `feat`, `fix`, `refactor` and `perf`; not required for `docs`, `style`,
+  `test`, `chore`, `ci`, `build` or `revert`.
+- Write the entry in Chinese and append it under `## [未发布]` in the category matching the
+  commit type (`新增` / `修复` / `优化` / `重构`).
+- Include the short commit hash linking to the commit on GitHub.
+- See [docs/commit.md](docs/commit.md) for the exact format and a worked example.
+
 ## Development Environment
 
 - Python 3.12+

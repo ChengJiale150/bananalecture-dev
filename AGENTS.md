@@ -39,4 +39,4 @@ bananalecture/
 
 - **Backend Architecture**: [backend/AGENTS.md](backend/AGENTS.md) - FastAPI layered architecture, dependency injection, port/adapter pattern
 - **Frontend Architecture**: [frontend/AGENTS.md](frontend/AGENTS.md) - Next.js feature modules, API client layer, AI agent integration
-- **Commit Guidelines**: [docs/commit.md](docs/commit.md) - Conventional commits format and quality checks. MUST read this document before committing any code
+- **Commit Guidelines**: [docs/commit.md](docs/commit.md) - Conventional commits format, quality checks, and the changelog requirement. MUST read this document before committing any code. Behaviour-changing commits (`feat`, `fix`, `refactor`, `perf`) MUST also add an entry to [CHANGELOG.md](CHANGELOG.md) in the same commit
