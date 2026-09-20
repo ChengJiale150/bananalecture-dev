@@ -57,6 +57,10 @@ test args='':
 cov-test args='':
     uv run pytest --cov=src/bananalecture_backend --cov-report=term-missing {{ args }}
 
+# Batch re-normalize stored slide audio for projects generated before loudness normalization
+renormalize-audio *args:
+    uv run python scripts/renormalize_project_audio.py {{ args }}
+
 # Run security checks using bandit
 security-check:
     uv run bandit -r src/
