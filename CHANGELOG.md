@@ -25,6 +25,12 @@ BananaLecture 的行为变更记录。格式参考 [Keep a Changelog](https://ke
 
 ### 修复
 
+- **fix(scripts): 迁移脚本改为单文件独立运行，可在无源码的生产环境执行**
+  - 原实现依赖项目包与虚拟环境，而生产跑的是预构建 Docker 镜像、运维侧没有源码，导致无法使用。
+  - 改为仅用 Python 标准库 + ffmpeg 的单文件脚本，新增 `--check` 依赖自检，并支持从 `config.yaml` 尽力读取目标响度。
+  - 修正封面音效只应作用于 `cover` 页：此前会误加到同一项目的所有页；音效文件缺失时明确失败而非静默丢弃。
+  - 新增运维手册 [docs/renormalize-audio.md](docs/renormalize-audio.md)，说明必要依赖与生产执行步骤。
+
 - **fix(audio): 拼接幻灯片音频前统一响度** —— [5821e85](https://github.com/ChengJiale150/bananalecture-dev/commit/5821e85)
   - 修复旁白、大雄、哆啦A梦与音效之间音量不一致：同一页内响度极差由 24 LU 收敛到 0.5 LU。
   - 修复封面页音效导致的削波：真峰值由 +3.2 dBTP 降至 -3.5 dBTP，响度范围由 22.1 LU 降至 1.7 LU。

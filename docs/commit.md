@@ -50,9 +50,14 @@ only copy of the release history, so it has to stay trustworthy.
 - **Format**:
 
   ```markdown
-  - **<type>(<scope>): <一句话中文说明>** —— [<短哈希>](https://github.com/ChengJiale150/bananalecture-dev/commit/<短哈希>)
+  - **<type>(<scope>): <一句话中文说明>**
     - 具体影响，或可核对的数据（可选，但推荐）
   ```
+
+  Optionally append ` —— [<短哈希>](https://github.com/ChengJiale150/bananalecture-dev/commit/<短哈希>)`
+  after the bolded summary. A commit cannot know its own hash, so entries written in the
+  same commit normally omit it; add hashes for past commits, or fill them all in as part of
+  a release pass.
 
 - **Releases**: when cutting a release, rename `## [未发布]` to
   `## [<版本号>] - <YYYY-MM-DD>` and add a fresh empty `## [未发布]` above it.
@@ -74,7 +79,7 @@ This is a `feat`, so the same commit also appends to `CHANGELOG.md`:
 ```markdown
 ### 新增
 
-- **feat(projects): 支持拖拽调整幻灯片顺序** —— [1a2b3c4](https://github.com/ChengJiale150/bananalecture-dev/commit/1a2b3c4)
+- **feat(projects): 支持拖拽调整幻灯片顺序**
   - 项目编辑器支持拖拽排序，顺序变更即时持久化。
 ```
 
