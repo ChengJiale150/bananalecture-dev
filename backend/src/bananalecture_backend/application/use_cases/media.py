@@ -450,6 +450,7 @@ class GenerateSlideAudioUseCase:
         logger.bind(slide_id=slide_id, dialogue_count=len(dialogues)).info("audio_generation_started")
         dialogue_paths: list[Path] = []
         temp_files: list[Path] = []
+        temp_dir = await self.asset_store.create_temp_dir(self.settings.AUDIO_GENERATION.NORMALIZATION.TEMP_DIR_PREFIX)
         try:
             for index, dialogue in enumerate(dialogues, start=1):
                 audio_bytes = await self.audio_synthesizer.generate_audio(
@@ -461,18 +462,25 @@ class GenerateSlideAudioUseCase:
                 dialogue_relative_path = StorageLayout.dialogue_audio(project_id, slide_id, dialogue.id)
                 dialogue_output_path = await self.asset_store.prepare_output_file(dialogue_relative_path)
 
+                raw_relative_path = StorageLayout.dialogue_raw_audio(project_id, slide_id, dialogue.id)
+                await self.asset_store.write_bytes(raw_relative_path, audio_bytes)
+                raw_path = self.asset_store.resolve_file(raw_relative_path)
+                temp_files.append(raw_path)
+                [speech_path] = await self._normalize_audio([raw_path], temp_dir, f"dialogue-{index:03d}")
+
                 prefix_assets = self.audio_cue_strategy.dialogue_prefix_assets(dialogue.role)
                 if prefix_assets:
-                    raw_relative_path = StorageLayout.dialogue_raw_audio(project_id, slide_id, dialogue.id)
-                    await self.asset_store.write_bytes(raw_relative_path, audio_bytes)
-                    raw_path = self.asset_store.resolve_file(raw_relative_path)
-                    temp_files.append(raw_path)
+                    normalized_prefixes = await self._normalize_audio(
+                        list(prefix_assets),
+                        temp_dir,
+                        f"dialogue-{index:03d}-cue",
+                    )
                     await self.audio_processor.concatenate_mp3_files(
-                        [*prefix_assets, raw_path],
+                        [*normalized_prefixes, speech_path],
                         dialogue_output_path,
                     )
                 else:
-                    await self.asset_store.write_bytes(dialogue_relative_path, audio_bytes)
+                    await asyncio.to_thread(shutil.copyfile, speech_path, dialogue_output_path)
 
                 await self.dialogue_resource.set_audio_path(dialogue.id, dialogue_relative_path)
                 dialogue_paths.append(dialogue_output_path)
@@ -482,7 +490,12 @@ class GenerateSlideAudioUseCase:
 
             slide_relative_path = StorageLayout.slide_audio(project_id, slide_id)
             slide_output_path = await self.asset_store.prepare_output_file(slide_relative_path)
-            slide_inputs = [*self.audio_cue_strategy.slide_prefix_assets(slide.type), *dialogue_paths]
+            slide_prefix_assets = await self._normalize_audio(
+                list(self.audio_cue_strategy.slide_prefix_assets(slide.type)),
+                temp_dir,
+                "slide-cue",
+            )
+            slide_inputs = [*slide_prefix_assets, *dialogue_paths]
             await self.audio_processor.concatenate_mp3_files(slide_inputs, slide_output_path)
             await self.slide_resource.set_audio_path(slide_id, slide_relative_path)
             await self.session.commit()
@@ -494,6 +507,25 @@ class GenerateSlideAudioUseCase:
             for temp_file in temp_files:
                 if temp_file.exists():
                     await asyncio.to_thread(temp_file.unlink)
+            await asyncio.to_thread(shutil.rmtree, temp_dir, ignore_errors=True)
+
+    async def _normalize_audio(self, sources: list[Path], temp_dir: Path, tag: str) -> list[Path]:
+        """Return loudness-normalized copies of ``sources``.
+
+        Every clip that later reaches the concatenation step is normalized to the
+        configured target, because text-to-speech voices and bundled cue assets all
+        render at different loudness levels. The original paths are returned
+        unchanged when normalization is disabled.
+        """
+        if not self.settings.AUDIO_GENERATION.NORMALIZATION.ENABLED:
+            return sources
+
+        normalized: list[Path] = []
+        for position, source in enumerate(sources, start=1):
+            target = temp_dir / f"{tag}-{position:02d}.mp3"
+            await self.audio_processor.normalize_loudness(source, target)
+            normalized.append(target)
+        return normalized
 
 
 class GenerateProjectVideoUseCase:

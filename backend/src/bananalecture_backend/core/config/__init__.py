@@ -14,6 +14,7 @@ from bananalecture_backend.core.config.app import (
 from bananalecture_backend.core.config.base import DEFAULT_CONFIG_FILE, DEFAULT_ENV_FILE, ROOT_DIR
 from bananalecture_backend.core.config.media import (
     AudioGenerationSettings,
+    AudioNormalizationSettings,
     AudioProviderSettings,
     DialogueGenerationProviderSettings,
     DialogueGenerationSettings,
@@ -29,6 +30,7 @@ __all__ = [
     "ApiSettings",
     "AppMetadataSettings",
     "AudioGenerationSettings",
+    "AudioNormalizationSettings",
     "AudioProviderSettings",
     "DatabaseSettings",
     "DialogueGenerationProviderSettings",

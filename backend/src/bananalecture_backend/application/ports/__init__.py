@@ -63,7 +63,9 @@ class AudioSynthesizer(Protocol):
 
 
 class AudioProcessor(Protocol):
-    """Concatenate audio assets into a final mp3."""
+    """Normalize and concatenate audio assets into a final mp3."""
+
+    async def normalize_loudness(self, source: Path, output: Path) -> None: ...
 
     async def concatenate_mp3_files(self, inputs: list[Path], output: Path) -> None: ...
 

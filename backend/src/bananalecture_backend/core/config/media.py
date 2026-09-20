@@ -59,6 +59,20 @@ class AudioProviderSettings(BaseModel):
     REQUEST_TIMEOUT_SECONDS: float = Field(default=60.0, gt=0.0)
 
 
+class AudioNormalizationSettings(BaseModel):
+    """Loudness normalization settings applied to every synthesized speech clip.
+
+    Text-to-speech voices have inherently different loudness, so raw provider output
+    makes narration and each character audibly uneven once concatenated.
+    """
+
+    ENABLED: bool = True
+    TARGET_LUFS: float = Field(default=-16.0, lt=0.0)
+    TARGET_TRUE_PEAK_DBTP: float = Field(default=-1.5, lt=0.0)
+    TARGET_LRA: float = Field(default=11.0, gt=0.0)
+    TEMP_DIR_PREFIX: str = "audio-normalize-"
+
+
 class AudioGenerationSettings(BaseModel):
     """Settings for the external audio generation service."""
 
@@ -67,6 +81,7 @@ class AudioGenerationSettings(BaseModel):
     CHANNELS: int = Field(default=2, gt=0)
     BITRATE: int = Field(default=128000, gt=0)
     FORMAT: str = "mp3"
+    NORMALIZATION: AudioNormalizationSettings = Field(default_factory=AudioNormalizationSettings)
     MAX_RETRIES: int = Field(default=3, ge=0)
     BASE_DELAY_SECONDS: float = Field(default=5.0, ge=0.0)
     MAX_DELAY_SECONDS: float = Field(default=60.0, gt=0.0)

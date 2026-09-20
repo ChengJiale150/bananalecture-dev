@@ -52,10 +52,16 @@ class FakeAudioGenerationClient:
 
 
 class FakeAudioProcessingService:
-    """Record concat operations and emit deterministic output files."""
+    """Record normalize/concat operations and emit deterministic output files."""
 
     def __init__(self) -> None:
         self.calls: list[tuple[list[str], str]] = []
+        self.normalize_calls: list[tuple[str, str]] = []
+
+    async def normalize_loudness(self, source: Path, output: Path) -> None:
+        self.normalize_calls.append((source.name, output.name))
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_bytes(source.read_bytes())
 
     async def concatenate_mp3_files(self, inputs: list[Path], output: Path) -> None:
         self.calls.append(([path.name for path in inputs], output.name))
@@ -299,14 +305,70 @@ async def test_generate_slide_audio_writes_dialogue_and_slide_audio(
     assert slide is not None
     assert slide.audio_path is not None
 
+    assert fake_processing.normalize_calls == [
+        ("audio.raw.mp3", "dialogue-001-01.mp3"),
+        ("audio.raw.mp3", "dialogue-002-01.mp3"),
+        ("gadgets.mp3", "dialogue-002-cue-01.mp3"),
+        ("cues.mp3", "slide-cue-01.mp3"),
+    ]
+    # Only loudness-normalized clips reach concatenation, so uneven voices and cue
+    # assets cannot leak their raw levels into the merged slide audio.
     assert fake_processing.calls == [
-        (["gadgets.mp3", "audio.raw.mp3"], "audio.mp3"),
-        (["cues.mp3", "audio.mp3", "audio.mp3"], "slide.mp3"),
+        (["dialogue-002-cue-01.mp3", "dialogue-002-01.mp3"], "audio.mp3"),
+        (["slide-cue-01.mp3", "audio.mp3", "audio.mp3"], "slide.mp3"),
     ]
 
     slide_audio_bytes = await storage.read_bytes(slide.audio_path)
     assert b"\xe7\xac\xac\xe4\xb8\x80\xe5\x8f\xa5" in slide_audio_bytes
     assert b"\xe7\xab\xb9\xe8\x9c\xbb\xe8\x9c\x93" in slide_audio_bytes
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_generate_slide_audio_skips_normalization_when_disabled(
+    db_session,
+    test_settings: Settings,
+    fake_dialogue_client,
+) -> None:
+    project_id, slide_id = await _create_project_and_slide(db_session, SlideType.COVER)
+    await bananalecture_add_dialogue(
+        db_session,
+        project_id,
+        slide_id,
+        role="道具",
+        content="竹蜻蜓",
+    )
+
+    storage = StorageService(test_settings.STORAGE.DATA_DIR)
+    await storage.initialize()
+    fake_processing = FakeAudioProcessingService()
+    d_config = get_template_config(DEFAULT_TEMPLATE_ID)
+    disabled_settings = test_settings.model_copy(
+        update={
+            "AUDIO_GENERATION": test_settings.AUDIO_GENERATION.model_copy(
+                update={
+                    "NORMALIZATION": test_settings.AUDIO_GENERATION.NORMALIZATION.model_copy(update={"ENABLED": False})
+                }
+            )
+        }
+    )
+
+    await GenerateSlideAudioUseCase(
+        db_session,
+        storage,
+        FakeAudioGenerationClient(),
+        fake_processing,
+        fake_dialogue_client,
+        DefaultDialoguePromptStrategy(d_config.cue_config),
+        DefaultAudioCueStrategy(ROOT_DIR / "assets" / d_config.assets_dir, d_config.cue_config),
+        settings=disabled_settings,
+    ).execute(project_id, slide_id)
+
+    assert fake_processing.normalize_calls == []
+    assert fake_processing.calls == [
+        (["gadgets.mp3", "audio.raw.mp3"], "audio.mp3"),
+        (["cues.mp3", "audio.mp3"], "slide.mp3"),
+    ]
 
 
 @pytest.mark.unit
@@ -330,6 +392,9 @@ async def test_generate_slide_audio_propagates_processing_failures(
     fake_audio_client = FakeAudioGenerationClient()
 
     class FailingAudioProcessingService:
+        async def normalize_loudness(self, source: Path, output: Path) -> None:
+            raise ExternalServiceError("ffmpeg failed")
+
         async def concatenate_mp3_files(self, inputs: list[Path], output: Path) -> None:
             raise ExternalServiceError("ffmpeg failed")
 

@@ -83,10 +83,16 @@ class FakeAudioGenerationClient:
 
 
 class FakeAudioProcessingService:
-    """Simple concat implementation for tests."""
+    """Simple normalize/concat implementation for tests."""
 
     def __init__(self) -> None:
         self.calls: list[tuple[list[str], str]] = []
+        self.normalize_calls: list[tuple[str, str]] = []
+
+    async def normalize_loudness(self, source: Path, output: Path) -> None:
+        self.normalize_calls.append((source.name, output.name))
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_bytes(source.read_bytes())
 
     async def concatenate_mp3_files(self, inputs: list[Path], output: Path) -> None:
         self.calls.append(([path.name for path in inputs], output.name))

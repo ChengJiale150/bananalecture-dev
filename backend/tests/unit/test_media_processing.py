@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -33,8 +34,44 @@ def _write_test_png(path: Path) -> None:
     path.write_bytes(TEST_PNG_BYTES)
 
 
-def _create_sine_mp3(path: Path, *, channels: int, sample_rate: int = 32000, duration: float = 0.6) -> None:
+def _create_sine_mp3(
+    path: Path,
+    *,
+    channels: int,
+    sample_rate: int = 32000,
+    duration: float = 0.6,
+    volume_db: float = 0.0,
+) -> None:
     channel_layout = "stereo" if channels == 2 else "mono"
+    args = [
+        FFMPEG_BIN or "ffmpeg",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-f",
+        "lavfi",
+        "-i",
+        f"sine=frequency=880:sample_rate={sample_rate}:duration={duration}",
+    ]
+    if volume_db:
+        args += ["-af", f"volume={volume_db}dB"]
+    args += [
+        "-ac",
+        str(channels),
+        "-ar",
+        str(sample_rate),
+        "-c:a",
+        "libmp3lame",
+        "-b:a",
+        "128k",
+        "-channel_layout",
+        channel_layout,
+        str(path),
+    ]
+    _run_command(args)
+
+
+def _create_silent_mp3(path: Path, *, duration: float = 2.0) -> None:
     _run_command(
         [
             FFMPEG_BIN or "ffmpeg",
@@ -44,20 +81,69 @@ def _create_sine_mp3(path: Path, *, channels: int, sample_rate: int = 32000, dur
             "-f",
             "lavfi",
             "-i",
-            f"sine=frequency=880:sample_rate={sample_rate}:duration={duration}",
-            "-ac",
-            str(channels),
-            "-ar",
-            str(sample_rate),
+            "anullsrc=channel_layout=stereo:sample_rate=32000",
+            "-t",
+            str(duration),
             "-c:a",
             "libmp3lame",
             "-b:a",
             "128k",
-            "-channel_layout",
-            channel_layout,
             str(path),
         ]
     )
+
+
+_LOUDNESS_PATTERN = re.compile(r"I:\s+(-?\d+(?:\.\d+)?)\s+LUFS")
+_TRUE_PEAK_PATTERN = re.compile(r"Peak:\s+(-?\d+(?:\.\d+)?)\s+dBFS")
+_MAX_VOLUME_PATTERN = re.compile(r"max_volume:\s+(-?\d+(?:\.\d+)?)\s+dB")
+
+
+def _probe_loudness(path: Path) -> tuple[float, float]:
+    """Return integrated loudness (LUFS) and true peak (dBFS) for one audio file."""
+    result = subprocess.run(
+        [
+            FFMPEG_BIN or "ffmpeg",
+            "-hide_banner",
+            "-nostats",
+            "-i",
+            str(path),
+            "-filter_complex",
+            "ebur128=peak=true",
+            "-f",
+            "null",
+            "-",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    loudness = _LOUDNESS_PATTERN.findall(result.stderr)
+    true_peak = _TRUE_PEAK_PATTERN.search(result.stderr)
+    assert loudness, result.stderr
+    assert true_peak is not None, result.stderr
+    return float(loudness[-1]), float(true_peak.group(1))
+
+
+def _probe_max_volume_db(path: Path) -> float:
+    result = subprocess.run(
+        [
+            FFMPEG_BIN or "ffmpeg",
+            "-hide_banner",
+            "-i",
+            str(path),
+            "-af",
+            "volumedetect",
+            "-f",
+            "null",
+            "-",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    match = _MAX_VOLUME_PATTERN.search(result.stderr)
+    assert match is not None, result.stderr
+    return float(match.group(1))
 
 
 def _probe_audio_channels(path: Path) -> int:
@@ -222,3 +308,53 @@ async def test_image_preprocessing_with_large_input(tmp_path: Path) -> None:
         # The green area should be centered horizontally
         center_pixel = result.getpixel((target_width // 2, target_height // 2))
         assert center_pixel[1] > 250 and center_pixel[0] == 0, f"Expected green center, got {center_pixel}"
+
+
+@pytest.mark.asyncio
+async def test_audio_processing_normalizes_loudness_to_configured_target(
+    tmp_path: Path,
+    test_settings: Settings,
+) -> None:
+    loud_input = tmp_path / "loud.mp3"
+    quiet_input = tmp_path / "quiet.mp3"
+    loud_output = tmp_path / "loud-normalized.mp3"
+    quiet_output = tmp_path / "quiet-normalized.mp3"
+
+    # Simulate the real defect: one speaker rendered far louder than another.
+    _create_sine_mp3(loud_input, channels=2, duration=2.0, volume_db=-6.0)
+    _create_sine_mp3(quiet_input, channels=2, duration=2.0, volume_db=-30.0)
+
+    service = AudioProcessingService(test_settings)
+    await service.normalize_loudness(loud_input, loud_output)
+    await service.normalize_loudness(quiet_input, quiet_output)
+
+    normalization = test_settings.AUDIO_GENERATION.NORMALIZATION
+    loud_lufs, loud_peak = _probe_loudness(loud_output)
+    quiet_lufs, quiet_peak = _probe_loudness(quiet_output)
+
+    assert loud_lufs == pytest.approx(normalization.TARGET_LUFS, abs=1.0)
+    assert quiet_lufs == pytest.approx(normalization.TARGET_LUFS, abs=1.0)
+    assert abs(loud_lufs - quiet_lufs) < 1.0
+    assert loud_peak <= normalization.TARGET_TRUE_PEAK_DBTP + 0.5
+    assert quiet_peak <= normalization.TARGET_TRUE_PEAK_DBTP + 0.5
+    assert _probe_audio_channels(loud_output) == 2
+    assert _probe_audio_sample_rate(loud_output) == test_settings.AUDIO_GENERATION.SAMPLE_RATE
+
+
+@pytest.mark.asyncio
+async def test_audio_processing_normalization_keeps_silence_silent(
+    tmp_path: Path,
+    test_settings: Settings,
+) -> None:
+    silent_input = tmp_path / "silent.mp3"
+    output = tmp_path / "silent-normalized.mp3"
+
+    _create_silent_mp3(silent_input)
+
+    service = AudioProcessingService(test_settings)
+    await service.normalize_loudness(silent_input, output)
+
+    assert output.exists()
+    _decode_media(output)
+    # An unmeasurable (silent) input must not be amplified into noise.
+    assert _probe_max_volume_db(output) <= -60.0
