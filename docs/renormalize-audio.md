@@ -1,7 +1,8 @@
-# 存量音频响度迁移（运维手册）
+# 存量媒体迁移（音频响度 + 视频重生成，运维手册）
 
-把历史上生成的幻灯片音频重建为一致的响度。用于修复「旁白、各角色、音效之间音量不一致」
-的问题，**不需要重新调用 TTS**，因此不消耗额度、不改变任何台词内容。
+把历史上生成的幻灯片音频重建为一致的响度，并可一并重新生成 `project-video.mp4`。
+用于修复「旁白、各角色、音效之间音量不一致」的问题，**不需要重新调用 TTS**，
+因此不消耗额度、不改变任何台词内容。
 
 脚本位置：`backend/scripts/renormalize_project_audio.py`
 
@@ -21,6 +22,9 @@
 | **磁盘空间** | 可容纳单页音频的临时副本 | 通常几 MB，脚本结束后自动清理 |
 | **网络** | **不需要** | 全程离线，不访问任何外部服务 |
 | **第三方包** | **不需要** | 无 pip / 无 uv / 无源码依赖 |
+
+> 若使用 `--regenerate-video`，还需 `libx264` 编码器与 `aac` 编码器（标准 ffmpeg 构建均含，
+> 且项目镜像已满足）。
 
 脚本自带依赖自检，会逐项检查并给出结论：
 
@@ -57,7 +61,36 @@ docker compose exec backend python /tmp/renormalize_project_audio.py --apply
 
 > 请在**没有生成任务运行**时执行，因为脚本会重写 API 正在对外提供的音频文件。
 
-### 2.1 宿主机执行（可选）
+### 2.1 连视频一起更新
+
+替换音频**不会**自动刷新已渲染的 `project-video.mp4`。有两种方式更新视频：
+
+**方式 A：让脚本一并重建（推荐用于批量/离线）**
+
+```bash
+# 音频与视频一起处理
+docker compose exec backend python /tmp/renormalize_project_audio.py --apply --regenerate-video
+
+# 音频此前已修好、本次只重建视频
+docker compose exec backend python /tmp/renormalize_project_audio.py --apply --video-only
+```
+
+`--video-only` 完全不触碰音频（已实测音频 md5 不变）。默认只刷新**已登记过视频**的项目
+（`--video-scope existing`）；加 `--video-scope all` 还会为「每页都同时具备图片和音频」
+但尚未生成过视频的项目创建视频。
+
+> **编码开销**：视频用 libx264 逐页渲染，实测 3.2 分钟成片约需 **2 分钟**（多核），
+> 大致是成片时长的 **0.5～1 倍**。因此干跑**只列出计划、不做编码**，不会浪费 CPU。
+
+**方式 B：走应用自身的接口（后端可用且未被改动时的规范路径）**
+
+脚本内的视频渲染是为了「离线也能跑」而用 ffmpeg 复刻的等价实现。如果后端可正常访问，
+直接调用它自己的视频生成接口是更保险的选择——不会与应用管线产生分叉。
+缺点是每个项目都要单独触发并轮询任务，项目多时不如方式 A 方便。
+
+---
+
+## 2.2 宿主机执行（可选）
 
 宿主机通常没有 ffmpeg，且 `assets/` 只在镜像里，因此**不推荐**；确有需要时：
 
@@ -92,6 +125,13 @@ python3 scripts/renormalize_project_audio.py \
 | `--no-cue-assets` | 关 | 不添加封面音效（显式接受丢失） |
 | `--project-id` / `--slide-id` | 全部 | 限定范围，可重复 |
 | `--cover-cue` | 内置 | 声明 `模板=文件名`，如 `doraemon=cues.mp3`；`模板=` 表示无音效 |
+| `--regenerate-video` | 关 | 音频处理完后，一并重建各项目的 `project-video.mp4` |
+| `--video-only` | 关 | 跳过全部音频处理，只重建视频（隐含 `--regenerate-video`） |
+| `--video-scope` | `existing` | `existing` 只刷新已登记视频的项目；`all` 也为资产完整的项目新建视频 |
+
+视频编码参数（分辨率/帧率/编码器/码率/像素格式/背景色/输出文件名）会**尽力从 `config.yaml`
+读取**，读不到则使用与应用一致的默认值（1366x768 @ 25fps、libx264/aac、yuv420p、192k、
+输出 `project-video.mp4`），并在启动信息里打印实际取值。
 
 内置模板音效表与 `core/templates.py` 保持一致：`doraemon → cues.mp3`，`xiyouji → 无`。
 遇到未知模板会打印提示并按"无音效"处理。
@@ -116,8 +156,17 @@ python3 scripts/renormalize_project_audio.py \
 2. **道具音效无法拆分。** 道具角色的音效在生成时已并入该条对话文件，脚本不会再重复前置。
    用时若叠加 `--update-dialogue-audio`，音效与语音只能施加同一增益，该片段内部仍有小残差；
    彻底修正需重新生成该页音频。
-3. **仅影响音频。** 已生成的 `project-video.mp4` 不会自动更新，需在音频迁移后重新生成视频。
-4. **`config.yaml` 为尽力解析。** 无第三方 YAML 库，只读取唯一命名的标量键并做范围校验；
+3. **音频替换不会自动刷新视频。** 必须显式加 `--regenerate-video`（或 `--video-only`），
+   否则已渲染的 `project-video.mp4` 仍是旧音频。
+4. **视频渲染是复刻实现。** 应用用 Pillow 预处理图片再交给 ffmpeg，脚本用单次 ffmpeg
+   `scale+pad` 得到等价结果（因此不需要图像库）。若应用的编码管线变化，需同步修改脚本里的
+   `VideoBuilder`；后端可用且未被改动时，优先走应用自身的视频生成接口。
+5. **`--regenerate-video` 会写数据库。** 仅当项目原本未登记视频时，才回写
+   `projects.video_path`（否则 API 无法对外提供该文件）。`updated_at` 刻意不改，避免猜错
+   应用的时间格式。
+6. **资产不完整的项目会被跳过**，并在结尾用 `note:` 说明是哪一页缺图片或音频
+   （应用自身的视频生成同样会拒绝这类项目）。
+7. **`config.yaml` 为尽力解析。** 无第三方 YAML 库，只读取唯一命名的标量键并做范围校验；
    若生产改过目标值，建议直接显式传 `--target-lufs`。
 
 ---
@@ -134,3 +183,9 @@ python3 scripts/renormalize_project_audio.py \
 | 缺失音效 | 报错并计为失败，其余页继续处理 |
 | 响度收敛 | 全部页面落到 -16.8 LUFS 左右；`--update-dialogue-audio` 后单条预览音频 -16.4 LUFS |
 | 依赖独立性 | 使用系统 `python3`（非项目虚拟环境）即可运行 |
+| 视频重生成 | 3 页项目约 3.2 分钟成片，实测渲染耗时约 2 分钟，输出 1366x768/25fps/h264+aac |
+| 视频音频 | 旧视频 `-23.1 LUFS / LRA 11.0 / 峰值 +3.1 dBFS(削波)` → 新视频 `-16.9 LUFS / LRA 2.4 / 峰值 -3.5 dBFS`，与源 `slide.mp3`(-16.8~-17.0) 一致 |
+| 视频备份 | 旧视频保留为 `project-video.mp4.bak` |
+| `--video-only` | 音频 md5 完全不变，确认不触碰音频 |
+| video_path 回写 | 将 `video_path` 置空后运行，渲染完成即自动登记回规范路径；`updated_at` 保持不变 |
+| 跳过原因可见 | 资产不完整的项目在结尾以 `note:` 逐条说明缺失页 |

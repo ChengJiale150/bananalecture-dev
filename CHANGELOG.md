@@ -18,6 +18,14 @@ BananaLecture 的行为变更记录。格式参考 [Keep a Changelog](https://ke
 
 ### 新增
 
+- **feat(scripts): 迁移脚本支持一并重新生成 project-video.mp4**
+  - 替换音频不会刷新已渲染的视频，新增 `--regenerate-video` 在音频处理完后重建视频；`--video-only` 用于音频已修好、本次只重建视频（实测不触碰音频）。
+  - 视频参数（分辨率/帧率/编码器/码率/像素格式/背景色/输出名）尽力从 `config.yaml` 读取，缺失时用与应用一致的默认值。
+  - `--video-scope existing`（默认）只刷新已登记视频的项目，`all` 也为「每页图片与音频齐全」的项目新建视频；资产不完整的项目会跳过并说明原因。
+  - 用单次 ffmpeg `scale+pad` 复刻应用的 Pillow 预处理，因此无需图像库；项目原本未登记视频时回写 `projects.video_path`，`updated_at` 不改。
+  - 视频编码开销大，干跑只列计划不编码（约 0.2 秒完成）。
+  - 实测旧视频由 `-23.1 LUFS / LRA 11.0 / 峰值 +3.1 dBFS(削波)` 变为 `-16.9 LUFS / LRA 2.4 / 峰值 -3.5 dBFS`，与修复后的 `slide.mp3` 一致。
+
 - **feat(scripts): 存量项目音频批量重归一化脚本** —— [2138f30](https://github.com/ChengJiale150/bananalecture-dev/commit/2138f30)
   - 复用已生成的 TTS 音频重建 `slide.mp3`，无需重跑语音合成或对话生成。
   - 默认 dry run；替换前保留 `*.bak` 且跨次运行不被覆盖；单页失败不影响其余页。

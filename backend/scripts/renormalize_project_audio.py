@@ -58,6 +58,25 @@ When running on the host, the cue assets usually live only inside the image; mou
 copy ``assets/`` and point ``--assets-root`` at it, or pass ``--no-cue-assets`` after
 confirming no slide uses a cover cue (see CAVEATS).
 
+REBUILDING VIDEOS TOO
+---------------------
+Replacing slide audio does not refresh an already rendered ``project-video.mp4``, so
+pass ``--regenerate-video`` to rebuild videos in the same run. If the audio was fixed
+earlier, ``--video-only`` skips the audio pass entirely::
+
+    docker compose exec backend python /tmp/renormalize_project_audio.py --apply --video-only
+
+By default only projects that already have a registered video are refreshed
+(``--video-scope existing``). ``--video-scope all`` also creates videos for projects
+whose slides all have both an image and audio. Encoding is CPU heavy: expect roughly
+0.5-2x the video's duration per project, so a dry run lists the plan WITHOUT encoding.
+
+The application preprocesses images with Pillow and then encodes with ffmpeg; this
+script performs the equivalent single ffmpeg pass so that no image library is needed.
+Keep it in step with ``VideoProcessingService`` if the application's encoding changes --
+when the backend is available and unmodified, using its own video generation endpoint is
+the canonical path and avoids this duplication.
+
 CAVEATS
 -------
   * Cover slides normally begin with a cue sound effect that is NOT part of any
@@ -69,6 +88,9 @@ CAVEATS
   * ``--update-dialogue-audio`` also rewrites the per-dialogue preview files. For a
     prop-role clip the cue and speech are fused into one file, so only a single shared
     gain can be applied and that clip keeps a small internal imbalance.
+  * ``--regenerate-video`` writes to the database (``projects.video_path``) when a
+    project had no registered video, so the API can serve the new file. ``updated_at``
+    is intentionally left untouched to avoid guessing the application's datetime format.
   * Re-running is safe and deterministic: every run regenerates from the untouched
     source clips, and an existing ``.bak`` is never overwritten.
 """
@@ -102,6 +124,19 @@ DEFAULT_TEMPLATE_ID = "doraemon"
 RESIDUAL_LRA_WARNING_LU = 5.0
 """A merged slide above this loudness range still sounds uneven, so flag it."""
 
+# Video defaults, mirroring the application's VideoGenerationSettings.
+DEFAULT_VIDEO_WIDTH = 1366
+DEFAULT_VIDEO_HEIGHT = 768
+DEFAULT_VIDEO_FPS = 25
+DEFAULT_VIDEO_CODEC = "libx264"
+DEFAULT_VIDEO_AUDIO_CODEC = "aac"
+DEFAULT_VIDEO_AUDIO_CHANNELS = 2
+DEFAULT_VIDEO_AUDIO_SAMPLE_RATE = 32000
+DEFAULT_VIDEO_AUDIO_BITRATE = 192000
+DEFAULT_VIDEO_PIXEL_FORMAT = "yuv420p"
+DEFAULT_VIDEO_BACKGROUND = "black"
+DEFAULT_VIDEO_FILENAME = "project-video.mp4"
+
 # Template id -> cover cue filename. Mirrors core/templates.py, which is unavailable in
 # production images that ship no source. Override with --cover-cue if a template changes.
 COVER_CUES = {
@@ -119,12 +154,25 @@ MEASUREMENT_PATTERNS = {
     "input_thresh": re.compile(r'"input_thresh"\s*:\s*"([^"]+)"'),
     "target_offset": re.compile(r'"target_offset"\s*:\s*"([^"]+)"'),
 }
-CONFIG_VALUE_PATTERNS = {
-    "target_lufs": re.compile(r"^\s*TARGET_LUFS:\s*(-?\d+(?:\.\d+)?)\s*$", re.MULTILINE),
-    "target_true_peak": re.compile(r"^\s*TARGET_TRUE_PEAK_DBTP:\s*(-?\d+(?:\.\d+)?)\s*$", re.MULTILINE),
-    "target_lra": re.compile(r"^\s*TARGET_LRA:\s*(-?\d+(?:\.\d+)?)\s*$", re.MULTILINE),
+CONFIG_NUMBER_PATTERNS = {
+    "target_lufs": (re.compile(r"^\s*TARGET_LUFS:\s*(-?\d+(?:\.\d+)?)\s*$", re.MULTILINE), -40.0, -5.0),
+    "target_true_peak": (re.compile(r"^\s*TARGET_TRUE_PEAK_DBTP:\s*(-?\d+(?:\.\d+)?)\s*$", re.MULTILINE), -6.0, 0.0),
+    "target_lra": (re.compile(r"^\s*TARGET_LRA:\s*(-?\d+(?:\.\d+)?)\s*$", re.MULTILINE), 1.0, 30.0),
+    "video_width": (re.compile(r"^\s*WIDTH:\s*(\d+)\s*$", re.MULTILINE), 16, 7680),
+    "video_height": (re.compile(r"^\s*HEIGHT:\s*(\d+)\s*$", re.MULTILINE), 16, 4320),
+    "video_fps": (re.compile(r"^\s*FPS:\s*(\d+)\s*$", re.MULTILINE), 1, 120),
+    "video_audio_channels": (re.compile(r"^\s*AUDIO_CHANNELS:\s*(\d+)\s*$", re.MULTILINE), 1, 8),
+    "video_audio_sample_rate": (re.compile(r"^\s*AUDIO_SAMPLE_RATE:\s*(\d+)\s*$", re.MULTILINE), 8000, 192000),
+    "video_audio_bitrate": (re.compile(r"^\s*AUDIO_BITRATE:\s*(\d+)\s*$", re.MULTILINE), 8000, 512000),
+}
+CONFIG_TEXT_PATTERNS = {
     "data_dir": re.compile(r"^\s*DATA_DIR:\s*['\"]?([^'\"\n#]+?)['\"]?\s*$", re.MULTILINE),
     "database_url": re.compile(r"^\s*URL:\s*['\"]?(sqlite[^'\"\n#]*?)['\"]?\s*$", re.MULTILINE),
+    "video_codec": re.compile(r"^\s*VIDEO_CODEC:\s*['\"]?([A-Za-z0-9_]+)['\"]?\s*$", re.MULTILINE),
+    "video_audio_codec": re.compile(r"^\s*AUDIO_CODEC:\s*['\"]?([A-Za-z0-9_]+)['\"]?\s*$", re.MULTILINE),
+    "video_pixel_format": re.compile(r"^\s*PIXEL_FORMAT:\s*['\"]?([A-Za-z0-9_]+)['\"]?\s*$", re.MULTILINE),
+    "video_background_color": re.compile(r"^\s*BACKGROUND_COLOR:\s*['\"]?([A-Za-z0-9_.#]+)['\"]?\s*$", re.MULTILINE),
+    "video_output_filename": re.compile(r"^\s*OUTPUT_FILENAME:\s*['\"]?([A-Za-z0-9_.-]+)['\"]?\s*$", re.MULTILINE),
 }
 SQLITE_URL_PREFIXES = ("sqlite+aiosqlite:///", "sqlite:///", "sqlite+aiosqlite://", "sqlite://")
 
@@ -168,6 +216,56 @@ class SlideJob:
     cue_expected_name: str | None
     cue_asset: Path | None
     clips: tuple
+
+
+@dataclass(frozen=True)
+class VideoSettings:
+    """Video encoding parameters, mirroring VideoGenerationSettings."""
+
+    width: int
+    height: int
+    fps: int
+    video_codec: str
+    audio_codec: str
+    audio_channels: int
+    audio_sample_rate: int
+    audio_bitrate: int
+    pixel_format: str
+    background_color: str
+    output_filename: str
+
+    def describe(self) -> str:
+        return "{0}x{1} @ {2}fps, {3}/{4}, {5} {6}k".format(
+            self.width,
+            self.height,
+            self.fps,
+            self.video_codec,
+            self.audio_codec,
+            self.pixel_format,
+            self.audio_bitrate // 1000,
+        )
+
+
+@dataclass(frozen=True)
+class VideoSlideAsset:
+    """One slide's image and merged audio, ready to render into a clip."""
+
+    slide_id: str
+    image_path: Path
+    audio_path: Path
+
+
+@dataclass(frozen=True)
+class ProjectVideoJob:
+    """Everything needed to rebuild one project's video."""
+
+    project_id: str
+    project_name: str
+    project_user_id: str
+    video_key: str
+    video_key_is_registered: bool
+    total_audio_seconds: float
+    slides: tuple
 
 
 def configure_stdout() -> None:
@@ -233,25 +331,20 @@ def load_config_values(config_path: Path | None) -> dict:
     except OSError:
         return values
 
-    for key, pattern in CONFIG_VALUE_PATTERNS.items():
+    for key, pattern in CONFIG_TEXT_PATTERNS.items():
+        match = pattern.search(text)
+        if match is not None:
+            values[key] = match.group(1).strip()
+
+    for key, (pattern, minimum, maximum) in CONFIG_NUMBER_PATTERNS.items():
         match = pattern.search(text)
         if match is None:
             continue
-        raw = match.group(1).strip()
-        if key in ("data_dir", "database_url"):
-            values[key] = raw
-            continue
         try:
-            number = float(raw)
+            number = float(match.group(1))
         except ValueError:
             continue
-        if not math.isfinite(number):
-            continue
-        if key == "target_lufs" and not -40.0 <= number <= -5.0:
-            continue
-        if key == "target_true_peak" and not -6.0 <= number <= 0.0:
-            continue
-        if key == "target_lra" and not 1.0 <= number <= 30.0:
+        if not math.isfinite(number) or not minimum <= number <= maximum:
             continue
         values[key] = number
     return values
@@ -464,6 +557,8 @@ def connect_database(database: Path) -> sqlite3.Connection:
     except sqlite3.Error as exc:
         raise MigrationError("cannot open database {0}: {1}".format(database, exc))
     connection.row_factory = sqlite3.Row
+    # --regenerate-video may register projects.video_path while the API is connected.
+    connection.execute("PRAGMA busy_timeout = 30000")
     return connection
 
 
@@ -548,6 +643,260 @@ def collect_jobs(
                 )
             )
     return jobs, notes
+
+
+def probe_duration(ffmpeg: str, path: Path) -> float:
+    """Return a media file's duration in seconds, or 0.0 when unknown."""
+    result = run_command([ffmpeg, "-hide_banner", "-i", str(path)])
+    match = re.search(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)", result.stderr)
+    if match is None:
+        return 0.0
+    hours, minutes, seconds = match.groups()
+    return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+
+
+def collect_video_jobs(
+    connection: sqlite3.Connection,
+    project_ids: set,
+    data_dir: Path,
+    video_settings: VideoSettings,
+    scope: str,
+) -> tuple:
+    """Build one video rebuild plan per project that has complete assets."""
+    jobs = []
+    notes = []
+
+    columns = {row["name"] for row in connection.execute("PRAGMA table_info(projects)")}
+    if "video_path" not in columns:
+        return jobs, ["this database has no projects.video_path column; nothing to rebuild"]
+
+    projects = connection.execute("SELECT id, name, user_id, video_path FROM projects ORDER BY created_at").fetchall()
+    for project in projects:
+        if project_ids and project["id"] not in project_ids:
+            continue
+
+        registered = project["video_path"] is not None
+        if scope == "existing" and not registered:
+            continue
+
+        slides = connection.execute(
+            "SELECT id, image_path, audio_path FROM slides WHERE project_id = ? ORDER BY idx, created_at",
+            (project["id"],),
+        ).fetchall()
+        if not slides:
+            notes.append("project {0}: no slides, skipping video".format(project["id"]))
+            continue
+
+        assets = []
+        missing = None
+        for slide in slides:
+            if not slide["image_path"] or not slide["audio_path"]:
+                missing = "slide {0} is missing an image or audio path".format(slide["id"])
+                break
+            image_path = data_dir / slide["image_path"]
+            audio_path = data_dir / slide["audio_path"]
+            if not image_path.is_file():
+                missing = "slide image is missing: {0}".format(image_path)
+                break
+            if not audio_path.is_file():
+                missing = "slide audio is missing: {0}".format(audio_path)
+                break
+            assets.append(VideoSlideAsset(slide_id=slide["id"], image_path=image_path, audio_path=audio_path))
+
+        if missing is not None:
+            notes.append("project {0}: {1}, skipping video".format(project["id"], missing))
+            continue
+
+        jobs.append(
+            ProjectVideoJob(
+                project_id=project["id"],
+                project_name=project["name"],
+                project_user_id=project["user_id"],
+                # Write where the API already serves from; fall back to the canonical key.
+                video_key=project["video_path"]
+                or "projects/{0}/video/{1}".format(project["id"], video_settings.output_filename),
+                video_key_is_registered=registered,
+                total_audio_seconds=0.0,
+                slides=tuple(assets),
+            )
+        )
+    return jobs, notes
+
+
+class VideoBuilder:
+    """Render slide clips and concatenate them, mirroring the application's pipeline.
+
+    The application preprocesses images with Pillow and then encodes with ffmpeg; the
+    equivalent single ffmpeg pass is used here so no image library is required. Keep this
+    in step with VideoProcessingService if the application's encoding changes.
+    """
+
+    def __init__(self, ffmpeg: str, settings: VideoSettings, args: argparse.Namespace) -> None:
+        self.ffmpeg = ffmpeg
+        self.settings = settings
+        self.args = args
+
+    def _fit_filter(self) -> str:
+        """Contain-fit the image and pad to the target canvas, like the app does."""
+        return "scale={0}:{1}:force_original_aspect_ratio=decrease,pad={0}:{1}:(ow-iw)/2:(oh-ih)/2:color={2}".format(
+            self.settings.width, self.settings.height, self.settings.background_color
+        )
+
+    def render_clip(self, asset: VideoSlideAsset, target: Path) -> None:
+        """Render one static image plus its audio into a video clip."""
+        args = [
+            self.ffmpeg,
+            "-y",
+            "-hide_banner",
+            "-nostats",
+            "-loop",
+            "1",
+            "-framerate",
+            str(self.settings.fps),
+            "-i",
+            str(asset.image_path),
+            "-i",
+            str(asset.audio_path),
+            "-vf",
+            self._fit_filter(),
+            "-c:v",
+            self.settings.video_codec,
+            "-pix_fmt",
+            self.settings.pixel_format,
+            "-r",
+            str(self.settings.fps),
+            "-c:a",
+            self.settings.audio_codec,
+            "-ac",
+            str(self.settings.audio_channels),
+            "-ar",
+            str(self.settings.audio_sample_rate),
+            "-b:a",
+            str(self.settings.audio_bitrate),
+            "-shortest",
+            "-movflags",
+            "+faststart",
+            str(target),
+        ]
+        result = run_command(args)
+        if result.returncode != 0 or not target.is_file():
+            raise MigrationError(
+                "ffmpeg failed to render a clip for {0}: {1}".format(asset.slide_id, _tail(result.stderr))
+            )
+
+    def concatenate(self, clips: list, target: Path) -> None:
+        """Concatenate rendered clips without re-encoding."""
+        manifest = target.parent / "video-manifest.txt"
+        lines = ["file '{0}'".format(str(item.resolve()).replace("'", "'\\''")) for item in clips]
+        manifest.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        result = run_command(
+            [
+                self.ffmpeg,
+                "-y",
+                "-hide_banner",
+                "-nostats",
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                str(manifest),
+                "-c",
+                "copy",
+                "-movflags",
+                "+faststart",
+                str(target),
+            ]
+        )
+        if result.returncode != 0 or not target.is_file():
+            raise MigrationError("ffmpeg failed to concatenate the video: {0}".format(_tail(result.stderr)))
+
+
+def process_video_job(
+    job: ProjectVideoJob,
+    builder: VideoBuilder,
+    data_dir: Path,
+    args: argparse.Namespace,
+    connection: sqlite3.Connection,
+) -> tuple:
+    """Rebuild one project's video, isolating failures to that project."""
+    target = data_dir / job.video_key
+
+    if not args.apply:
+        # Encoding is expensive, so a dry run only reports the plan instead of
+        # spending minutes of CPU to produce something it then discards.
+        seconds = sum(probe_duration(builder.ffmpeg, asset.audio_path) for asset in job.slides)
+        detail = "would render {0} clip(s), about {1:.1f} min of video".format(len(job.slides), seconds / 60.0)
+        return ("planned", detail, job)
+
+    temp_dir = Path(tempfile.mkdtemp(prefix="video-build-"))
+    try:
+        clips = []
+        for index, asset in enumerate(job.slides, start=1):
+            print("      clip {0}/{1} ...".format(index, len(job.slides)), flush=True)
+            clip = temp_dir / "{0:03d}.mp4".format(index)
+            builder.render_clip(asset, clip)
+            clips.append(clip)
+
+        staged = temp_dir / "project-video.mp4"
+        builder.concatenate(clips, staged)
+
+        if target.is_file() and args.backup:
+            backup = target.with_name(target.name + ".bak")
+            if not backup.exists():
+                shutil.copyfile(str(target), str(backup))
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(str(staged), str(target))
+
+        if not job.video_key_is_registered:
+            connection.execute("UPDATE projects SET video_path = ? WHERE id = ?", (job.video_key, job.project_id))
+            connection.commit()
+
+        size_mb = target.stat().st_size / (1024 * 1024)
+        detail = "rendered {0} clip(s), {1:.1f} MB".format(len(job.slides), size_mb)
+        return ("applied", detail, job)
+    except MigrationError as exc:
+        return ("failed", str(exc), job)
+    except OSError as exc:
+        return ("failed", "filesystem error: {0}".format(exc), job)
+    finally:
+        shutil.rmtree(str(temp_dir), ignore_errors=True)
+
+
+def report_videos(outcomes: list, notes: list, args: argparse.Namespace, settings: VideoSettings) -> int:
+    """Print the per-project video report and return a process exit code."""
+    print("\n" + "=" * 72)
+    print("VIDEO PHASE  ({0})".format("APPLY" if args.apply else "DRY RUN"))
+    print("settings: {0}".format(settings.describe()))
+
+    current_project = None
+    for status, detail, job in outcomes:
+        if job.project_id != current_project:
+            current_project = job.project_id
+            print("\n== {0} / {1}  ({2}) ==".format(job.project_user_id, job.project_name, job.project_id))
+        print("  video {0}  ({1} slide(s))".format(job.video_key, len(job.slides)))
+        if status == "failed":
+            print("    FAILED   {0}".format(detail))
+            continue
+        print("    {0:8s} {1}".format(status.upper(), detail))
+        if status == "applied" and not job.video_key_is_registered:
+            print("    note: registered projects.video_path so the API can serve it")
+
+    failed = [item for item in outcomes if item[0] == "failed"]
+    print("\n" + "-" * 72)
+    for note in notes:
+        print("note: {0}".format(note))
+    print(
+        "projects: {0} total, {1} {2}, {3} failed".format(
+            len(outcomes),
+            len([item for item in outcomes if item[0] != "failed"]),
+            "applied" if args.apply else "planned",
+            len(failed),
+        )
+    )
+    if not args.apply and outcomes:
+        print("dry run: no video was encoded. Re-run with --apply to render.")
+    return 1 if failed else 0
 
 
 class Renormalizer:
@@ -742,6 +1091,24 @@ def parse_args(argv: list) -> argparse.Namespace:
         metavar="TEMPLATE=FILE",
         help="declare a cover cue, e.g. doraemon=cues.mp3; use TEMPLATE= to declare none",
     )
+
+    parser.add_argument(
+        "--regenerate-video",
+        action="store_true",
+        help="after the audio pass, also rebuild each project's project-video.mp4",
+    )
+    parser.add_argument(
+        "--video-only",
+        action="store_true",
+        help="skip all audio work and only rebuild videos (implies --regenerate-video)",
+    )
+    parser.add_argument(
+        "--video-scope",
+        choices=("existing", "all"),
+        default="existing",
+        help="'existing' only refreshes projects that already have a video; 'all' also creates "
+        "videos for projects whose slides all have image and audio (default: existing)",
+    )
     parser.set_defaults(backup=True)
     return parser.parse_args(argv)
 
@@ -788,13 +1155,28 @@ def resolve_settings(args: argparse.Namespace) -> tuple:
         channels=args.channels,
         bitrate=args.bitrate,
     )
-    return config_path, data_dir, database, assets_root, cover_cues, tools
+    video_settings = VideoSettings(
+        width=int(config_values.get("video_width", DEFAULT_VIDEO_WIDTH)),
+        height=int(config_values.get("video_height", DEFAULT_VIDEO_HEIGHT)),
+        fps=int(config_values.get("video_fps", DEFAULT_VIDEO_FPS)),
+        video_codec=str(config_values.get("video_codec", DEFAULT_VIDEO_CODEC)),
+        audio_codec=str(config_values.get("video_audio_codec", DEFAULT_VIDEO_AUDIO_CODEC)),
+        audio_channels=int(config_values.get("video_audio_channels", DEFAULT_VIDEO_AUDIO_CHANNELS)),
+        audio_sample_rate=int(config_values.get("video_audio_sample_rate", DEFAULT_VIDEO_AUDIO_SAMPLE_RATE)),
+        audio_bitrate=int(config_values.get("video_audio_bitrate", DEFAULT_VIDEO_AUDIO_BITRATE)),
+        pixel_format=str(config_values.get("video_pixel_format", DEFAULT_VIDEO_PIXEL_FORMAT)),
+        background_color=str(config_values.get("video_background_color", DEFAULT_VIDEO_BACKGROUND)),
+        output_filename=str(config_values.get("video_output_filename", DEFAULT_VIDEO_FILENAME)),
+    )
+    return config_path, data_dir, database, assets_root, cover_cues, tools, video_settings
 
 
 def main(argv: list = None) -> int:
     configure_stdout()
     args = parse_args(argv if argv is not None else sys.argv[1:])
-    config_path, data_dir, database, assets_root, cover_cues, tools = resolve_settings(args)
+    config_path, data_dir, database, assets_root, cover_cues, tools, video_settings = resolve_settings(args)
+    if args.video_only:
+        args.regenerate_video = True
 
     print("python    : {0}".format(sys.version.split()[0]))
     print("ffmpeg    : {0}".format(shutil.which(args.ffmpeg) or args.ffmpeg))
@@ -803,6 +1185,8 @@ def main(argv: list = None) -> int:
     print("database  : {0}".format(database))
     print("assets    : {0}".format(assets_root if assets_root else "(not found)"))
     print("target    : {0} LUFS / TP {1} dBTP / LRA {2}".format(tools.target_lufs, tools.target_tp, tools.target_lra))
+    if args.regenerate_video:
+        print("video     : {0}".format(video_settings.describe()))
 
     problems = check_ffmpeg(args.ffmpeg)
     if not data_dir.is_dir():
@@ -821,7 +1205,7 @@ def main(argv: list = None) -> int:
 
     if not args.apply:
         print("mode      : DRY RUN (pass --apply to write changes)")
-    elif args.update_dialogue_audio:
+    elif args.update_dialogue_audio and not args.video_only:
         print("mode      : APPLY (slide audio + per-dialogue preview files)")
 
     try:
@@ -830,16 +1214,32 @@ def main(argv: list = None) -> int:
         print("\nerror: {0}".format(exc))
         return 2
 
+    exit_code = 0
     try:
-        jobs, notes = collect_jobs(connection, set(args.project_id), set(args.slide_id), assets_root, cover_cues)
+        if not args.video_only:
+            exit_code = _run_audio_phase(connection, args, data_dir, assets_root, cover_cues, tools) or exit_code
+        if args.regenerate_video:
+            exit_code = _run_video_phase(connection, args, data_dir, video_settings) or exit_code
     except sqlite3.Error as exc:
-        print("\nerror: failed to read the database schema: {0}".format(exc))
+        print("\nerror: failed to read or update the database: {0}".format(exc))
         return 2
     finally:
         connection.close()
+    return exit_code
 
+
+def _run_audio_phase(
+    connection: sqlite3.Connection,
+    args: argparse.Namespace,
+    data_dir: Path,
+    assets_root: Path | None,
+    cover_cues: dict,
+    tools: AudioTools,
+) -> int:
+    """Normalize every slide's merged audio. Returns a process exit code."""
+    jobs, notes = collect_jobs(connection, set(args.project_id), set(args.slide_id), assets_root, cover_cues)
     if not jobs:
-        print("\nNo slide audio matched. Nothing to do.")
+        print("\nNo slide audio matched.")
         for note in notes:
             print("note: {0}".format(note))
         return 0
@@ -856,6 +1256,31 @@ def main(argv: list = None) -> int:
         status, detail, before, after = renormalizer.process(job)
         outcomes.append((status, detail, before, after, job))
     return report(outcomes, notes, args, tools)
+
+
+def _run_video_phase(
+    connection: sqlite3.Connection,
+    args: argparse.Namespace,
+    data_dir: Path,
+    video_settings: VideoSettings,
+) -> int:
+    """Rebuild project videos from the current images and audio. Returns an exit code."""
+    jobs, notes = collect_video_jobs(connection, set(args.project_id), data_dir, video_settings, args.video_scope)
+    if not jobs:
+        print("\nNo project video matched (scope: {0}).".format(args.video_scope))
+        for note in notes:
+            print("note: {0}".format(note))
+        return 0
+
+    print("\nFound {0} project video(s) to rebuild (scope: {1}).".format(len(jobs), args.video_scope))
+
+    builder = VideoBuilder(args.ffmpeg, video_settings, args)
+    outcomes = []
+    for job in jobs:
+        if args.apply:
+            print("\n  building {0} ...".format(job.project_name), flush=True)
+        outcomes.append(process_video_job(job, builder, data_dir, args, connection))
+    return report_videos(outcomes, notes, args, video_settings)
 
 
 if __name__ == "__main__":
